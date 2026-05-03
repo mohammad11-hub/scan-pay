@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { ScanLine, Trash2, Store, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ScanLine, Trash2, Store, Plus, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -7,7 +8,7 @@ import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Cart, type CartItem } from "@/components/Cart";
 import { PaymentQR } from "@/components/PaymentQR";
 import { PrintBill } from "@/components/PrintBill";
-import { findProductByBarcode, PRODUCTS } from "@/data/products";
+import { findProductByBarcode, getProducts, type Product } from "@/data/products";
 
 const UPI_ID = "mohammadhusainsunasara5@okicici";
 const SHOP_NAME = "Furat Dhaba";
