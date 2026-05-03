@@ -16,6 +16,13 @@ const SHOP_NAME = "Furat Dhaba";
 const Index = () => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [products, setProducts] = useState<Product[]>(() => getProducts());
+
+  useEffect(() => {
+    const h = () => setProducts(getProducts());
+    window.addEventListener("products:updated", h);
+    return () => window.removeEventListener("products:updated", h);
+  }, []);
 
   const beep = () => {
     try {
