@@ -10,7 +10,7 @@ import { PaymentQR } from "@/components/PaymentQR";
 import { PrintBill } from "@/components/PrintBill";
 import { findProductByBarcode, getProducts, type Product } from "@/data/products";
 
-const UPI_ID = "mohammadhusainsunasara5@okicici";
+const UPI_ID = "Q320109659@ybl";
 const SHOP_NAME = "Furat Dhaba";
 
 const Index = () => {
