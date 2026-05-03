@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Cart, type CartItem } from "@/components/Cart";
 import { PaymentQR } from "@/components/PaymentQR";
+import { PrintBill } from "@/components/PrintBill";
 import { findProductByBarcode, PRODUCTS } from "@/data/products";
 
 const UPI_ID = "mohammadhusainsunasara5@okicici";
@@ -141,7 +142,16 @@ const Index = () => {
           </Card>
 
           {totalPrice > 0 ? (
-            <PaymentQR amount={totalPrice} upiId={UPI_ID} payeeName={SHOP_NAME} />
+            <>
+              <PaymentQR amount={totalPrice} upiId={UPI_ID} payeeName={SHOP_NAME} />
+              <PrintBill
+                items={items}
+                total={totalPrice}
+                totalItems={totalItems}
+                shopName={SHOP_NAME}
+                upiId={UPI_ID}
+              />
+            </>
           ) : (
             <Card className="p-6 text-center text-sm text-muted-foreground">
               QR code will appear here once items are added
