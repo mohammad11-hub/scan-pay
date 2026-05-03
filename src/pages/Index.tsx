@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { ScanLine, Trash2, Store, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ScanLine, Trash2, Store, Plus, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -7,7 +8,7 @@ import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Cart, type CartItem } from "@/components/Cart";
 import { PaymentQR } from "@/components/PaymentQR";
 import { PrintBill } from "@/components/PrintBill";
-import { findProductByBarcode, PRODUCTS } from "@/data/products";
+import { findProductByBarcode, getProducts, type Product } from "@/data/products";
 
 const UPI_ID = "mohammadhusainsunasara5@okicici";
 const SHOP_NAME = "Furat Dhaba";
@@ -15,6 +16,13 @@ const SHOP_NAME = "Furat Dhaba";
 const Index = () => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [products, setProducts] = useState<Product[]>(() => getProducts());
+
+  useEffect(() => {
+    const h = () => setProducts(getProducts());
+    window.addEventListener("products:updated", h);
+    return () => window.removeEventListener("products:updated", h);
+  }, []);
 
   const beep = () => {
     try {
@@ -88,10 +96,15 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">Smart Billing POS</p>
             </div>
           </div>
-          <Button onClick={() => setScanning(true)} className="gap-2">
-            <ScanLine className="h-4 w-4" />
-            Scan
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button asChild variant="outline" size="icon" aria-label="Manage products">
+              <Link to="/products"><Package className="h-4 w-4" /></Link>
+            </Button>
+            <Button onClick={() => setScanning(true)} className="gap-2">
+              <ScanLine className="h-4 w-4" />
+              Scan
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -110,7 +123,7 @@ const Index = () => {
           <Card className="p-4">
             <p className="mb-2 text-xs font-medium text-muted-foreground">QUICK ADD (Demo)</p>
             <div className="flex flex-wrap gap-2">
-              {PRODUCTS.slice(0, 6).map((p) => (
+              {products.slice(0, 6).map((p) => (
                 <Button
                   key={p.id}
                   variant="outline"
