@@ -110,16 +110,6 @@ const Index = () => {
 
       <main className="container grid gap-6 py-6 lg:grid-cols-[1fr_360px]">
         <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Cart</h2>
-            {items.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clear} className="gap-1.5 text-destructive">
-                <Trash2 className="h-4 w-4" /> Clear
-              </Button>
-            )}
-          </div>
-          <Cart items={items} onInc={inc} onDec={dec} onRemove={remove} />
-
           <Card className="p-4">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">QUICK ADD</p>
@@ -152,6 +142,16 @@ const Index = () => {
               </div>
             )}
           </Card>
+
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Cart</h2>
+            {items.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clear} className="gap-1.5 text-destructive">
+                <Trash2 className="h-4 w-4" /> Clear
+              </Button>
+            )}
+          </div>
+          <Cart items={items} onInc={inc} onDec={dec} onRemove={remove} />
         </section>
 
         <aside className="flex flex-col gap-4">
