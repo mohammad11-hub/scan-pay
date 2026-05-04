@@ -142,6 +142,16 @@ const Index = () => {
               </div>
             )}
           </Card>
+
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Cart</h2>
+            {items.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clear} className="gap-1.5 text-destructive">
+                <Trash2 className="h-4 w-4" /> Clear
+              </Button>
+            )}
+          </div>
+          <Cart items={items} onInc={inc} onDec={dec} onRemove={remove} />
         </section>
 
         <aside className="flex flex-col gap-4">
