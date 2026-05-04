@@ -134,19 +134,21 @@ const Index = () => {
                 .
               </p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {products.map((p) => (
-                  <Button
-                    key={p.id}
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => handleScan(p.barcode)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {p.name.split(" ")[0]} ₹{p.price}
-                  </Button>
-                ))}
+              <div className="max-h-72 overflow-y-auto pr-1 -mr-1">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                  {products.map((p) => (
+                    <Button
+                      key={p.id}
+                      variant="outline"
+                      size="sm"
+                      className="h-auto min-h-9 w-full justify-start gap-1.5 whitespace-normal break-words py-2 text-left"
+                      onClick={() => handleScan(p.barcode)}
+                    >
+                      <Plus className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">{p.name} ₹{p.price}</span>
+                    </Button>
+                  ))}
+                </div>
               </div>
             )}
           </Card>
