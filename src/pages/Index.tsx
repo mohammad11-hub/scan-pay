@@ -134,7 +134,7 @@ const Index = () => {
                 .
               </p>
             ) : (
-              <div className="max-h-72 overflow-y-auto pr-1 -mr-1">
+              <div className={products.length > 6 ? "max-h-64 overflow-y-auto pr-1 -mr-1" : ""}>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
                   {products.map((p) => (
                     <Button
