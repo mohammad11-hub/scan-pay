@@ -121,21 +121,34 @@ const Index = () => {
           <Cart items={items} onInc={inc} onDec={dec} onRemove={remove} />
 
           <Card className="p-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">QUICK ADD (Demo)</p>
-            <div className="flex flex-wrap gap-2">
-              {products.slice(0, 6).map((p) => (
-                <Button
-                  key={p.id}
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => handleScan(p.barcode)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {p.name.split(" ")[0]} ₹{p.price}
-                </Button>
-              ))}
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">QUICK ADD</p>
+              <span className="text-xs text-muted-foreground">{products.length} items</span>
             </div>
+            {products.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No products yet.{" "}
+                <Link to="/products" className="text-primary underline">
+                  Add some
+                </Link>
+                .
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {products.map((p) => (
+                  <Button
+                    key={p.id}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => handleScan(p.barcode)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {p.name.split(" ")[0]} ₹{p.price}
+                  </Button>
+                ))}
+              </div>
+            )}
           </Card>
         </section>
 
