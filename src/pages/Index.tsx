@@ -8,6 +8,7 @@ import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Cart, type CartItem } from "@/components/Cart";
 import { PaymentQR } from "@/components/PaymentQR";
 import { PrintBill } from "@/components/PrintBill";
+import { CustomQRGenerator } from "@/components/CustomQRGenerator";
 import { findProductByBarcode, getProducts, type Product } from "@/data/products";
 
 const UPI_ID = "Q320109659@ybl";
