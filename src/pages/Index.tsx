@@ -144,6 +144,8 @@ const Index = () => {
             )}
           </Card>
 
+          <CustomQRGenerator upiId={UPI_ID} payeeName={SHOP_NAME} />
+
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Cart</h2>
             {items.length > 0 && (
