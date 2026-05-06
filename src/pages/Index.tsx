@@ -9,6 +9,7 @@ import { Cart, type CartItem } from "@/components/Cart";
 import { PaymentQR } from "@/components/PaymentQR";
 import { PrintBill } from "@/components/PrintBill";
 import { CustomQRGenerator } from "@/components/CustomQRGenerator";
+import { BillHistory } from "@/components/BillHistory";
 import { findProductByBarcode, getProducts, type Product } from "@/data/products";
 
 const UPI_ID = "Q320109659@ybl";
@@ -145,6 +146,7 @@ const Index = () => {
           </Card>
 
           <CustomQRGenerator upiId={UPI_ID} payeeName={SHOP_NAME} />
+          <BillHistory />
 
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Cart</h2>

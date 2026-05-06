@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import type { CartItem } from "./Cart";
+import { addBill } from "@/lib/billHistory";
 
 interface Props {
   items: CartItem[];
@@ -25,8 +26,17 @@ export const PrintBill = ({ items, total, totalItems, shopName, upiId, disabled 
     if (!node) return;
     const win = window.open("", "_blank", "width=400,height=600");
     if (!win) return;
-    const billNo = `INV-${Date.now().toString().slice(-8)}`;
-    const date = new Date().toLocaleString("en-IN");
+    const now = Date.now();
+    const billNo = `INV-${now.toString().slice(-8)}`;
+    const date = new Date(now).toLocaleString("en-IN");
+    addBill({
+      id: crypto.randomUUID(),
+      billNo,
+      createdAt: now,
+      items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+      totalItems,
+      total,
+    });
     win.document.write(`<!doctype html><html><head><title>${billNo}</title>
       <style>
         @page { size: 80mm auto; margin: 4mm; }
