@@ -82,22 +82,22 @@ const Index = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-30 border-b border-white/40 glass">
         <div className="container flex items-center justify-between py-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 animate-fade-in">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-primary-foreground"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl text-foreground shadow-[var(--shadow-soft)]"
               style={{ background: "var(--gradient-primary)" }}
             >
               <Store className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight">{SHOP_NAME}</h1>
+              <h1 className="text-lg font-bold leading-tight gradient-text">{SHOP_NAME}</h1>
               <p className="text-xs text-muted-foreground">Smart Billing POS</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="icon" aria-label="Manage products">
               <Link to="/products"><Package className="h-4 w-4" /></Link>
             </Button>
@@ -109,11 +109,11 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container grid gap-6 py-6 lg:grid-cols-[1fr_360px]">
+      <main className="container grid gap-6 py-6 lg:grid-cols-[1fr_360px] animate-fade-in">
         <section className="flex flex-col gap-4">
-          <Card className="p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">QUICK ADD</p>
+          <Card className="p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Add</p>
               <span className="text-xs text-muted-foreground">{products.length} items</span>
             </div>
             {products.length === 0 ? (
@@ -159,15 +159,15 @@ const Index = () => {
 
         <aside className="flex flex-col gap-4">
           <Card
-            className="p-5 text-primary-foreground"
+            className="p-6 text-foreground border-white/60"
             style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-soft)" }}
           >
             <div className="flex items-baseline justify-between">
-              <span className="text-sm opacity-90">Total Items</span>
+              <span className="text-sm opacity-80">Total Items</span>
               <span className="text-xl font-bold">{totalItems}</span>
             </div>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-sm opacity-90">Total Amount</span>
+              <span className="text-sm opacity-80">Total Amount</span>
               <span className="text-3xl font-extrabold">₹{totalPrice.toFixed(2)}</span>
             </div>
           </Card>
