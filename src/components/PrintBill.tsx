@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import type { CartItem } from "./Cart";
+import { addBill } from "@/lib/billHistory";
 
 interface Props {
   items: CartItem[];
