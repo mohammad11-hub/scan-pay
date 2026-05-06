@@ -110,7 +110,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="container grid gap-6 py-6 lg:grid-cols-[1fr_360px] animate-fade-in">
+      <main className="container grid gap-6 pb-6 lg:grid-cols-[1fr_360px] animate-fade-in" style={{ paddingTop: "100px" }}>
         <section className="flex flex-col gap-4">
           <Card className="p-5">
             <div className="mb-3 flex items-center justify-between">
