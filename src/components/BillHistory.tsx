@@ -99,8 +99,24 @@ export const BillHistory = () => {
     );
 
     const filename = `bills-${date || "all"}.xlsx`;
-    XLSX.writeFile(wb, filename);
-    toast.success(`Exported ${filtered.length} bill(s)`);
+    try {
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Exported ${filtered.length} bill(s)`);
+    } catch (err) {
+      console.error("Excel export failed", err);
+      toast.error("Excel download failed");
+    }
   };
 
   return (
