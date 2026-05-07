@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { History, Download, Trash2, FileSpreadsheet } from "lucide-react";
+import { History, Download, Trash2, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,55 @@ import {
 
 const todayKey = () => getDateKey(Date.now());
 
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const formatFileDate = (iso: string) => {
+  // iso = YYYY-MM-DD
+  const [y, m, d] = iso.split("-");
+  return `${d}_${MONTHS[Number(m) - 1]}_${y}`;
+};
+
+// Trigger download via Blob — works inside AppsGeyser WebView and modern browsers
+const triggerBlobDownload = (data: ArrayBuffer, filename: string) => {
+  const blob = new Blob([data], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  // WebView fallback: if URL.createObjectURL is unavailable, use data URI
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const a = document.createElement("a");
+      a.href = reader.result as string;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+    reader.readAsDataURL(blob);
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+};
+
 export const BillHistory = () => {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<string>(todayKey());
   const [bills, setBills] = useState<BillRecord[]>(() => readBills());
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const h = () => setBills(readBills());
@@ -49,73 +94,83 @@ export const BillHistory = () => {
     [filtered]
   );
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
     if (filtered.length === 0) {
-      toast.error("No bills to export");
+      toast.error("No bills to export for this date");
       return;
     }
 
-    // Sheet 1: Summary of bills
-    const summary = filtered.map((b, idx) => ({
-      "S.No": idx + 1,
-      "Bill No": b.billNo,
-      "Date": new Date(b.createdAt).toLocaleDateString("en-IN"),
-      "Time": new Date(b.createdAt).toLocaleTimeString("en-IN"),
-      "Total Items": b.totalItems,
-      "Amount (₹)": Number(b.total.toFixed(2)),
-    }));
-    summary.push({
-      "S.No": "" as any,
-      "Bill No": "",
-      "Date": "",
-      "Time": "TOTAL",
-      "Total Items": dayItems,
-      "Amount (₹)": Number(dayTotal.toFixed(2)),
-    });
-
-    // Sheet 2: Item-level details
-    const details = filtered.flatMap((b) =>
-      b.items.map((i) => ({
-        "Bill No": b.billNo,
-        "Date": new Date(b.createdAt).toLocaleDateString("en-IN"),
-        "Time": new Date(b.createdAt).toLocaleTimeString("en-IN"),
-        "Item": i.name,
-        "Qty": i.quantity,
-        "Rate (₹)": i.price,
-        "Amount (₹)": Number((i.price * i.quantity).toFixed(2)),
-      }))
-    );
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.json_to_sheet(summary),
-      "Summary"
-    );
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.json_to_sheet(details),
-      "Items"
-    );
-
-    const filename = `bills-${date || "all"}.xlsx`;
+    setLoading(true);
     try {
-      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      const blob = new Blob([wbout], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      // Small delay so the loader is visible (and lets the UI paint in WebView)
+      await new Promise((r) => setTimeout(r, 250));
+
+      // Build flat row-per-item report
+      const rows = filtered.flatMap((b) => {
+        const dt = new Date(b.createdAt);
+        const dateTime = `${dt.toLocaleDateString("en-IN")} ${dt.toLocaleTimeString("en-IN")}`;
+        return b.items.map((i) => ({
+          "Invoice Number": b.billNo,
+          "Item Name": i.name,
+          "Quantity": i.quantity,
+          "Price (₹)": Number(i.price.toFixed(2)),
+          "Total Amount (₹)": Number((i.price * i.quantity).toFixed(2)),
+          "Payment Method": (b as any).paymentMethod || "UPI",
+          "Customer Name": (b as any).customerName || "Walk-in",
+          "Date & Time": dateTime,
+        }));
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(`Exported ${filtered.length} bill(s)`);
+
+      // Grand total row
+      rows.push({
+        "Invoice Number": "",
+        "Item Name": "",
+        "Quantity": dayItems as any,
+        "Price (₹)": "" as any,
+        "Total Amount (₹)": Number(dayTotal.toFixed(2)),
+        "Payment Method": "",
+        "Customer Name": "GRAND TOTAL",
+        "Date & Time": "",
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [
+        { wch: 16 }, { wch: 24 }, { wch: 10 }, { wch: 12 },
+        { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 22 },
+      ];
+
+      // Summary sheet
+      const summary = filtered.map((b, idx) => ({
+        "S.No": idx + 1,
+        "Invoice Number": b.billNo,
+        "Date & Time": new Date(b.createdAt).toLocaleString("en-IN"),
+        "Total Items": b.totalItems,
+        "Amount (₹)": Number(b.total.toFixed(2)),
+      }));
+      summary.push({
+        "S.No": "" as any,
+        "Invoice Number": "",
+        "Date & Time": "TOTAL",
+        "Total Items": dayItems,
+        "Amount (₹)": Number(dayTotal.toFixed(2)),
+      });
+      const wsSummary = XLSX.utils.json_to_sheet(summary);
+      wsSummary["!cols"] = [{ wch: 6 }, { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 14 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+      XLSX.utils.book_append_sheet(wb, ws, "Sales Details");
+
+      const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+      const filename = `Sales_Report_${formatFileDate(date)}.xlsx`;
+      triggerBlobDownload(out, filename);
+
+      toast.success(`Downloaded ${filename}`);
     } catch (err) {
       console.error("Excel export failed", err);
-      toast.error("Excel download failed");
+      toast.error("Excel download failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,10 +190,10 @@ export const BillHistory = () => {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 animate-in fade-in-0 duration-300">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
-              <Label htmlFor="bh-date">Filter by date</Label>
+              <Label htmlFor="bh-date">Select date</Label>
               <Input
                 id="bh-date"
                 type="date"
@@ -146,13 +201,35 @@ export const BillHistory = () => {
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
-            <Button onClick={downloadExcel} className="gap-2">
-              <Download className="h-4 w-4" />
-              Download Excel
+            <Button
+              onClick={downloadExcel}
+              disabled={loading}
+              className="gap-2 rounded-2xl text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70"
+              style={{
+                background: "linear-gradient(135deg, #CCFBFF, #EF96C5)",
+              }}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Download Excel Report
+                </>
+              )}
             </Button>
           </div>
 
-          <Card className="grid grid-cols-3 gap-2 p-4 text-center">
+          <Card
+            className="grid grid-cols-3 gap-2 rounded-2xl p-4 text-center shadow-sm"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(204,251,255,0.35), rgba(239,150,197,0.25))",
+            }}
+          >
             <div>
               <p className="text-xs text-muted-foreground">Bills</p>
               <p className="text-lg font-bold">{filtered.length}</p>
@@ -174,7 +251,10 @@ export const BillHistory = () => {
               </p>
             ) : (
               filtered.map((b) => (
-                <Card key={b.id} className="flex items-center gap-3 p-3">
+                <Card
+                  key={b.id}
+                  className="flex items-center gap-3 rounded-2xl p-3 transition-all hover:shadow-md"
+                >
                   <FileSpreadsheet className="h-5 w-5 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{b.billNo}</p>
