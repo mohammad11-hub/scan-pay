@@ -84,6 +84,8 @@ const Index = () => {
   const remove = (id: string) => setItems((p) => p.filter((i) => i.id !== id));
   const clear = () => {
     setItems([]);
+    setCustomerPhone("");
+    setPhoneInput("");
     toast("Cart cleared");
   };
 
