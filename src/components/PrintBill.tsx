@@ -241,8 +241,9 @@ export const PrintBill = ({ items, total, totalItems, shopName, upiId, customerP
 
   return (
     <>
-      <Button onClick={handlePrint} disabled={disabled} className="w-full gap-2" variant="secondary">
-        <Printer className="h-4 w-4" /> Print Bill with QR
+      <Button onClick={handlePrint} disabled={disabled || sharing} className="w-full gap-2" variant="secondary">
+        {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+        {sharing ? "Sharing PDF..." : "Print Bill with QR"}
       </Button>
 
       {/* Hidden printable template */}
