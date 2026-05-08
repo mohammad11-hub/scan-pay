@@ -189,6 +189,30 @@ const Index = () => {
             </div>
           </Card>
 
+          <Card className="p-4">
+            <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" /> Customer Phone
+            </label>
+            <div className="flex gap-2">
+              <Input
+                type="tel"
+                inputMode="numeric"
+                placeholder="10-digit number"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                maxLength={15}
+              />
+              <Button onClick={addPhone} className="gap-1 shrink-0">
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+            {customerPhone && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-primary">
+                <Check className="h-3.5 w-3.5" /> Saved: {customerPhone}
+              </p>
+            )}
+          </Card>
+
           {totalPrice > 0 ? (
             <>
               <PaymentQR amount={totalPrice} upiId={UPI_ID} payeeName={SHOP_NAME} />
@@ -198,6 +222,7 @@ const Index = () => {
                 totalItems={totalItems}
                 shopName={SHOP_NAME}
                 upiId={UPI_ID}
+                customerPhone={customerPhone}
               />
             </>
           ) : (
