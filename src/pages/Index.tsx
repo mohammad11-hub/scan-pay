@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ScanLine, Trash2, Store, Plus, Package } from "lucide-react";
+import { ScanLine, Trash2, Store, Plus, Package, Phone, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Cart, type CartItem } from "@/components/Cart";
