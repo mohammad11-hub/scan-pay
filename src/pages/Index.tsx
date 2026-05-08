@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ScanLine, Trash2, Store, Plus, Package } from "lucide-react";
+import { ScanLine, Trash2, Store, Plus, Package, Phone, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Cart, type CartItem } from "@/components/Cart";
@@ -19,6 +20,18 @@ const Index = () => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [scanning, setScanning] = useState(false);
   const [products, setProducts] = useState<Product[]>(() => getProducts());
+  const [phoneInput, setPhoneInput] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+
+  const addPhone = () => {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast.error("Enter a valid phone number");
+      return;
+    }
+    setCustomerPhone(digits);
+    toast.success("Customer number added");
+  };
 
   useEffect(() => {
     const h = () => setProducts(getProducts());
@@ -71,6 +84,8 @@ const Index = () => {
   const remove = (id: string) => setItems((p) => p.filter((i) => i.id !== id));
   const clear = () => {
     setItems([]);
+    setCustomerPhone("");
+    setPhoneInput("");
     toast("Cart cleared");
   };
 
@@ -174,6 +189,30 @@ const Index = () => {
             </div>
           </Card>
 
+          <Card className="p-4">
+            <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" /> Customer Phone
+            </label>
+            <div className="flex gap-2">
+              <Input
+                type="tel"
+                inputMode="numeric"
+                placeholder="10-digit number"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                maxLength={15}
+              />
+              <Button onClick={addPhone} className="gap-1 shrink-0">
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+            {customerPhone && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-primary">
+                <Check className="h-3.5 w-3.5" /> Saved: {customerPhone}
+              </p>
+            )}
+          </Card>
+
           {totalPrice > 0 ? (
             <>
               <PaymentQR amount={totalPrice} upiId={UPI_ID} payeeName={SHOP_NAME} />
@@ -183,6 +222,7 @@ const Index = () => {
                 totalItems={totalItems}
                 shopName={SHOP_NAME}
                 upiId={UPI_ID}
+                customerPhone={customerPhone}
               />
             </>
           ) : (
