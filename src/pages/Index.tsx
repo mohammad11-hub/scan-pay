@@ -20,6 +20,18 @@ const Index = () => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [scanning, setScanning] = useState(false);
   const [products, setProducts] = useState<Product[]>(() => getProducts());
+  const [phoneInput, setPhoneInput] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+
+  const addPhone = () => {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast.error("Enter a valid phone number");
+      return;
+    }
+    setCustomerPhone(digits);
+    toast.success("Customer number added");
+  };
 
   useEffect(() => {
     const h = () => setProducts(getProducts());
