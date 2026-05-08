@@ -245,6 +245,14 @@ export const PrintBill = ({ items, total, totalItems, shopName, upiId, customerP
         {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
         {sharing ? "Sharing PDF..." : "Print Bill with QR"}
       </Button>
+      <Button
+        onClick={handleShareWhatsApp}
+        disabled={disabled || sharing || !customerPhone}
+        className="w-full gap-2 mt-2"
+      >
+        {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+        Share Receipt on WhatsApp
+      </Button>
 
       {/* Hidden printable template */}
       <div className="hidden">
