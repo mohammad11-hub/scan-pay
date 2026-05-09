@@ -248,7 +248,19 @@ export const PrintBill = ({
           await nav.share({
             files: [file],
             title: `${shopName} Receipt`,
-            text: `${shopName} - Bill ${bill.billNo}\nTotal: Rs.${total.toFixed(2)}\nThank you!`,
+            text:
+              `*${shopName}*\nBill: ${bill.billNo}\nDate: ${bill.date}\n` +
+              (customerPhone ? `Customer: +91 ${customerPhone}\n` : "") +
+              `\n*Items (${totalItems}):*\n` +
+              items
+                .map(
+                  (i, idx) =>
+                    `${idx + 1}. ${i.name} x${i.quantity} = Rs.${(
+                      i.price * i.quantity
+                    ).toFixed(2)}`
+                )
+                .join("\n") +
+              `\n\n*Total: Rs.${total.toFixed(2)}*\nThank you!`,
           });
           toast.success("Receipt shared");
           return;
