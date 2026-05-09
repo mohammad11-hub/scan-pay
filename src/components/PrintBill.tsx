@@ -267,9 +267,22 @@ export const PrintBill = ({
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
 
+      const itemLines = items
+        .map(
+          (i, idx) =>
+            `${idx + 1}. ${i.name} x${i.quantity} @ Rs.${i.price.toFixed(2)} = Rs.${(
+              i.price * i.quantity
+            ).toFixed(2)}`
+        )
+        .join("\n");
+
       const message =
-        `*${shopName}*\nBill: ${bill.billNo}\nDate: ${bill.date}\nItems: ${totalItems}\n` +
-        `Total: Rs.${total.toFixed(2)}\n\nReceipt image downloaded — please attach it here.\nThank you!`;
+        `*${shopName}*\nBill: ${bill.billNo}\nDate: ${bill.date}\n` +
+        (customerPhone ? `Customer: +91 ${customerPhone}\n` : "") +
+        `\n*Items (${totalItems}):*\n${itemLines}\n` +
+        `\n*Total: Rs.${total.toFixed(2)}*\n` +
+        `\nPay UPI: ${upiId}\n` +
+        `\nReceipt image downloaded — please attach it here.\nThank you!`;
 
       const waUrl = phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
