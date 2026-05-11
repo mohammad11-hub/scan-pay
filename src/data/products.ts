@@ -7,7 +7,7 @@ export interface Product {
   price: number;
 }
 
-const STORAGE_KEY = "pos.products.v1";
+const STORAGE_KEY = "pos.products.v2";
 
 const SEED: Product[] = [
   { id: "100", barcode: "100", name: "ચિકન ચિલ્લી", price: 110 },
