@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { QrCode, History, Trash2, Sparkles } from "lucide-react";
+import { QrCode, History, Trash2, Sparkles, Printer } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -123,6 +123,21 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
     toast("History cleared");
   };
 
+  const handlePrint = () => {
+    if (!generated) return;
+    const node = document.getElementById("custom-qr-receipt");
+    if (!node) return;
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) {
+      toast.error("Popup blocked");
+      return;
+    }
+    w.document.write(`<!doctype html><html><head><title>Receipt</title><style>body{font-family:ui-monospace,Menlo,monospace;margin:0;padding:12px;display:flex;justify-content:center;}@media print{@page{margin:6mm;}}</style></head><body>${node.outerHTML}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 300);
+  };
+
   return (
     <Dialog
       open={open}
@@ -199,6 +214,7 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
             ) : (
               <div className="flex flex-col items-center gap-3">
                 <div
+                  id="custom-qr-receipt"
                   className="bg-white text-black p-4 shadow-md rounded-md font-mono w-[280px]"
                 >
                   <div className="text-center font-bold text-base">{payeeName}</div>
@@ -228,6 +244,9 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
                 <div className="flex w-full gap-2">
                   <Button variant="outline" className="flex-1 rounded-xl" onClick={reset}>
                     New
+                  </Button>
+                  <Button variant="secondary" className="flex-1 rounded-xl gap-1.5" onClick={handlePrint}>
+                    <Printer className="h-4 w-4" /> Print
                   </Button>
                   <Button className="flex-1 rounded-xl" onClick={() => setOpen(false)}>
                     Done
