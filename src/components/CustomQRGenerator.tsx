@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { QrCode, History, Trash2, Sparkles } from "lucide-react";
+import { QrCode, History, Trash2, Sparkles, Printer } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
