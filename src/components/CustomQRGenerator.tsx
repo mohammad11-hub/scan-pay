@@ -123,6 +123,21 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
     toast("History cleared");
   };
 
+  const handlePrint = () => {
+    if (!generated) return;
+    const node = document.getElementById("custom-qr-receipt");
+    if (!node) return;
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) {
+      toast.error("Popup blocked");
+      return;
+    }
+    w.document.write(`<!doctype html><html><head><title>Receipt</title><style>body{font-family:ui-monospace,Menlo,monospace;margin:0;padding:12px;display:flex;justify-content:center;}@media print{@page{margin:6mm;}}</style></head><body>${node.outerHTML}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 300);
+  };
+
   return (
     <Dialog
       open={open}
