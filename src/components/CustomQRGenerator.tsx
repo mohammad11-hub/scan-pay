@@ -197,26 +197,43 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
                 </Button>
               </>
             ) : (
-              <Card className="flex flex-col items-center gap-3 p-5">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Scan to pay
-                </p>
-                <div className="rounded-xl bg-white p-4 shadow-[var(--shadow-card)]">
-                  <QRCodeSVG value={generated.payload} size={200} level="M" />
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold">{generated.itemName}</p>
-                  <p className="text-2xl font-bold">₹{generated.price.toFixed(2)}</p>
+              <div className="flex flex-col items-center gap-3">
+                <div
+                  className="bg-white text-black p-4 shadow-md rounded-md font-mono w-[280px]"
+                >
+                  <div className="text-center font-bold text-base">{payeeName}</div>
+                  <div className="text-center text-[10px] mt-1">
+                    {new Date(generated.createdAt).toLocaleString("en-IN")}
+                  </div>
+                  <div className="border-t border-dashed border-black my-2" />
+                  <div className="flex justify-between text-[11px]">
+                    <span className="truncate pr-2">{generated.itemName}</span>
+                    <span>Rs.{generated.price.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-dashed border-black my-2" />
+                  <div className="flex justify-between font-bold text-sm">
+                    <span>TOTAL</span>
+                    <span>Rs.{generated.price.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-dashed border-black my-2" />
+                  <div className="flex flex-col items-center">
+                    <div className="text-[10px] mb-1">Scan to Pay (UPI)</div>
+                    <QRCodeSVG value={generated.payload} size={150} level="M" />
+                    <div className="text-[9px] mt-1">{upiId}</div>
+                  </div>
+                  <div className="text-center text-[10px] mt-2">
+                    Thank you! Visit again.
+                  </div>
                 </div>
                 <div className="flex w-full gap-2">
-                  <Button variant="outline" className="flex-1" onClick={reset}>
+                  <Button variant="outline" className="flex-1 rounded-xl" onClick={reset}>
                     New
                   </Button>
-                  <Button className="flex-1" onClick={() => setOpen(false)}>
+                  <Button className="flex-1 rounded-xl" onClick={() => setOpen(false)}>
                     Done
                   </Button>
                 </div>
-              </Card>
+              </div>
             )}
           </TabsContent>
 
