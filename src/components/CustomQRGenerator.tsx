@@ -229,6 +229,9 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
                   <Button variant="outline" className="flex-1 rounded-xl" onClick={reset}>
                     New
                   </Button>
+                  <Button variant="secondary" className="flex-1 rounded-xl gap-1.5" onClick={handlePrint}>
+                    <Printer className="h-4 w-4" /> Print
+                  </Button>
                   <Button className="flex-1 rounded-xl" onClick={() => setOpen(false)}>
                     Done
                   </Button>
