@@ -214,6 +214,7 @@ export const CustomQRGenerator = ({ upiId, payeeName }: Props) => {
             ) : (
               <div className="flex flex-col items-center gap-3">
                 <div
+                  id="custom-qr-receipt"
                   className="bg-white text-black p-4 shadow-md rounded-md font-mono w-[280px]"
                 >
                   <div className="text-center font-bold text-base">{payeeName}</div>
