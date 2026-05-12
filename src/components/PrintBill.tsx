@@ -243,7 +243,9 @@ export const PrintBill = ({
       const nav: any = navigator;
       const canShareFile = nav.canShare && nav.canShare({ files: [file] });
 
-      if (canShareFile) {
+      // If we have a customer phone, ALWAYS go directly to that WhatsApp chat
+      // (the native share sheet cannot target a specific contact).
+      if (!phone && canShareFile) {
         try {
           await nav.share({
             files: [file],
