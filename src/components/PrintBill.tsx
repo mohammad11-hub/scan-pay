@@ -377,24 +377,54 @@ export const PrintBill = ({
             <DialogHeader>
               <DialogTitle className="text-foreground">Receipt Preview</DialogTitle>
               <DialogDescription className="text-foreground/70">
-                Choose paper size and action
+                Choose paper size, printer method and action
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-3 inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
-              {(["58mm", "80mm"] as PaperSize[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPaper(p)}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                    paper === p
-                      ? "bg-white shadow text-foreground"
-                      : "text-foreground/60"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
+                {(["58mm", "80mm"] as PaperSize[]).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => updatePaper(p)}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                      paper === p
+                        ? "bg-white shadow text-foreground"
+                        : "text-foreground/60"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <div className="inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
+                {(
+                  [
+                    ["auto", "Auto"],
+                    ["rawbt", "RawBT"],
+                    ["native", "Native"],
+                    ["browser", "Browser"],
+                  ] as [PrintMode, string][]
+                ).map(([m, label]) => (
+                  <button
+                    key={m}
+                    onClick={() => updateMode(m)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                      printMode === m
+                        ? "bg-white shadow text-foreground"
+                        : "text-foreground/60"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
+            <p className="mt-2 text-[11px] text-foreground/60">
+              {canPrintSilently
+                ? "Direct thermal printing ready — one click, no print dialog."
+                : "Web browsers block silent printing. In the Android app (RawBT) or desktop app, printing starts instantly with no dialog."}
+            </p>
+
           </div>
 
           <div className="px-4 pb-4 max-h-[55vh] overflow-y-auto">
