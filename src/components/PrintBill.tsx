@@ -16,6 +16,14 @@ import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
 import { generateReceiptImage } from "@/lib/receiptImage";
+import {
+  printReceipt,
+  getPrinterSettings,
+  savePrinterSettings,
+  hasNativeBridge,
+  isAndroidApp,
+  type PrintMode,
+} from "@/lib/printer";
 
 interface Props {
   items: CartItem[];
