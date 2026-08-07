@@ -16,6 +16,14 @@ import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
 import { generateReceiptImage } from "@/lib/receiptImage";
+import {
+  printReceipt,
+  getPrinterSettings,
+  savePrinterSettings,
+  hasNativeBridge,
+  isAndroidApp,
+  type PrintMode,
+} from "@/lib/printer";
 
 interface Props {
   items: CartItem[];
@@ -41,9 +49,20 @@ export const PrintBill = ({
   const receiptRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<null | "print" | "pdf" | "share">(null);
-  const [paper, setPaper] = useState<PaperSize>("80mm");
+  const [paper, setPaper] = useState<PaperSize>(() => getPrinterSettings().paper);
+  const [printMode, setPrintMode] = useState<PrintMode>(() => getPrinterSettings().mode);
   const [bill, setBill] = useState<{ billNo: string; date: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const canPrintSilently = hasNativeBridge() || isAndroidApp();
+
+  const updatePaper = (p: PaperSize) => {
+    setPaper(p);
+    savePrinterSettings({ mode: printMode, paper: p });
+  };
+  const updateMode = (m: PrintMode) => {
+    setPrintMode(m);
+    savePrinterSettings({ mode: m, paper });
+  };
 
   const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(shopName)}&am=${total.toFixed(
     2
@@ -86,10 +105,9 @@ export const PrintBill = ({
     setOpen(true);
   };
 
-  const buildPdf = () => {
-    if (!bill) return null;
-    const width = paper === "58mm" ? 58 : 80;
-    const doc = new jsPDF({ unit: "mm", format: [width, 220] });
+  // Renders the receipt into `doc` and returns the content height in mm.
+  const renderPdf = (doc: jsPDF, width: number) => {
+    if (!bill) return 0;
     const cx = width / 2;
     let y = 8;
     doc.setFont("helvetica", "bold");
@@ -119,7 +137,8 @@ export const PrintBill = ({
       theme: "plain",
       styles: { fontSize: 7, cellPadding: 0.8 },
       headStyles: { fontStyle: "bold", lineWidth: { top: 0.2, bottom: 0.2 } },
-      margin: { left: 3, right: 3 },
+      margin: { left: 3, right: 3, top: 0, bottom: 0 },
+      pageBreak: "avoid",
       columnStyles: {
         1: { halign: "right" },
         2: { halign: "right" },
@@ -145,48 +164,37 @@ export const PrintBill = ({
     doc.text(`UPI: ${upiId}`, cx, fy, { align: "center" });
     fy += 4;
     doc.text("Thank you! Visit again.", cx, fy, { align: "center" });
+    return fy + 4;
+  };
+
+  /** Two-pass build: measure the content, then emit a page of exactly that height. */
+  const buildPdf = () => {
+    if (!bill) return null;
+    const width = paper === "58mm" ? 58 : 80;
+    const probe = new jsPDF({ unit: "mm", format: [width, 2000] });
+    const height = Math.max(40, Math.ceil(renderPdf(probe, width)));
+    const doc = new jsPDF({ unit: "mm", format: [width, height] });
+    renderPdf(doc, width);
     return doc;
   };
 
-  const handlePrint = () => {
-    if (!receiptRef.current || !bill) return;
-    setBusy("print");
-    try {
-      const w = window.open("", "_blank", "width=420,height=640");
-      if (!w) {
-        toast.error("Pop-up blocked");
-        return;
-      }
-      const widthMm = paper === "58mm" ? "58mm" : "80mm";
-      w.document.write(`<!doctype html><html><head><title>${bill.billNo}</title>
-<style>
-  @page { size: ${widthMm} auto; margin: 3mm; }
-  body { font-family: 'Courier New', monospace; color:#000; font-size:11px; margin:0; padding:6px; width:${widthMm}; }
-  h1 { font-size:15px; margin:0 0 4px; text-align:center; }
-  .meta { text-align:center; font-size:10px; margin-bottom:4px; }
-  hr { border:none; border-top:1px dashed #000; margin:4px 0; }
-  table { width:100%; border-collapse:collapse; font-size:10px; }
-  th, td { padding:2px 0; text-align:left; }
-  .num { text-align:right; }
-  .total { font-size:13px; font-weight:bold; }
-  .qr { display:flex; flex-direction:column; align-items:center; margin-top:6px; }
-  .qr img { width: ${paper === "58mm" ? "120px" : "150px"}; height: auto; }
-  .foot { text-align:center; font-size:9px; margin-top:4px; }
-</style></head><body>
-<h1>${shopName}</h1>
+
+  const receiptHtml = () => {
+    if (!bill) return "";
+    return `<h1>${shopName}</h1>
 <div class="meta">Bill: ${bill.billNo}<br/>${bill.date}${
-        customerPhone ? `<br/>Customer: +91 ${customerPhone}` : ""
-      }</div>
+      customerPhone ? `<br/>Customer: +91 ${customerPhone}` : ""
+    }</div>
 <hr/>
 <table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amt</th></tr></thead>
 <tbody>${items
-        .map(
-          (i) =>
-            `<tr><td>${i.name}</td><td class="num">${i.quantity}</td><td class="num">${i.price.toFixed(
-              2
-            )}</td><td class="num">${(i.price * i.quantity).toFixed(2)}</td></tr>`
-        )
-        .join("")}</tbody></table>
+      .map(
+        (i) =>
+          `<tr><td>${i.name}</td><td class="num">${i.quantity}</td><td class="num">${i.price.toFixed(
+            2
+          )}</td><td class="num">${(i.price * i.quantity).toFixed(2)}</td></tr>`
+      )
+      .join("")}</tbody></table>
 <hr/>
 <table><tbody>
 <tr><td>Total Items</td><td class="num">${totalItems}</td></tr>
@@ -194,13 +202,39 @@ export const PrintBill = ({
 </tbody></table>
 <hr/>
 <div class="qr"><div>Scan to Pay (UPI)</div>${
-        qrDataUrl ? `<img src="${qrDataUrl}" alt="UPI QR"/>` : ""
-      }<div style="font-size:9px;margin-top:3px;">${upiId}</div></div>
-<div class="foot">Thank you! Visit again.</div>
-<script>window.onload=()=>{setTimeout(()=>{window.print();},250);};<\/script>
-</body></html>`);
-      w.document.close();
-      toast.success("Print preview opened");
+      qrDataUrl ? `<img src="${qrDataUrl}" alt="UPI QR"/>` : ""
+    }<div style="font-size:9px;margin-top:3px;">${upiId}</div></div>
+<div class="foot">Thank you! Visit again.</div>`;
+  };
+
+  const handlePrint = async () => {
+    if (!bill) return;
+    setBusy("print");
+    try {
+      const res = await printReceipt(
+        {
+          shopName,
+          billNo: bill.billNo,
+          date: bill.date,
+          customerPhone,
+          items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+          totalItems,
+          total,
+          upiId,
+          upiUrl,
+          paper,
+        },
+        receiptHtml(),
+        printMode
+      );
+      if (res.silent) {
+        toast.success(`Printing on ${paper} thermal printer`);
+        setOpen(false);
+      } else {
+        toast.info(
+          "Browsers can't print silently. Install the app (Android/Desktop) for one-click thermal printing."
+        );
+      }
     } catch (e) {
       console.error(e);
       toast.error("Print failed");
@@ -208,6 +242,7 @@ export const PrintBill = ({
       setBusy(null);
     }
   };
+
 
   const handleDownloadPdf = () => {
     if (!bill) return;
@@ -342,24 +377,54 @@ export const PrintBill = ({
             <DialogHeader>
               <DialogTitle className="text-foreground">Receipt Preview</DialogTitle>
               <DialogDescription className="text-foreground/70">
-                Choose paper size and action
+                Choose paper size, printer method and action
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-3 inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
-              {(["58mm", "80mm"] as PaperSize[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPaper(p)}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                    paper === p
-                      ? "bg-white shadow text-foreground"
-                      : "text-foreground/60"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
+                {(["58mm", "80mm"] as PaperSize[]).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => updatePaper(p)}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                      paper === p
+                        ? "bg-white shadow text-foreground"
+                        : "text-foreground/60"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <div className="inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
+                {(
+                  [
+                    ["auto", "Auto"],
+                    ["rawbt", "RawBT"],
+                    ["native", "Native"],
+                    ["browser", "Browser"],
+                  ] as [PrintMode, string][]
+                ).map(([m, label]) => (
+                  <button
+                    key={m}
+                    onClick={() => updateMode(m)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                      printMode === m
+                        ? "bg-white shadow text-foreground"
+                        : "text-foreground/60"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
+            <p className="mt-2 text-[11px] text-foreground/60">
+              {canPrintSilently
+                ? "Direct thermal printing ready — one click, no print dialog."
+                : "Web browsers block silent printing. In the Android app (RawBT) or desktop app, printing starts instantly with no dialog."}
+            </p>
+
           </div>
 
           <div className="px-4 pb-4 max-h-[55vh] overflow-y-auto">
