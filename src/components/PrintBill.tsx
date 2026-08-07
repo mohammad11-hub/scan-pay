@@ -105,10 +105,9 @@ export const PrintBill = ({
     setOpen(true);
   };
 
-  const buildPdf = () => {
-    if (!bill) return null;
-    const width = paper === "58mm" ? 58 : 80;
-    const doc = new jsPDF({ unit: "mm", format: [width, 220] });
+  // Renders the receipt into `doc` and returns the content height in mm.
+  const renderPdf = (doc: jsPDF, width: number) => {
+    if (!bill) return 0;
     const cx = width / 2;
     let y = 8;
     doc.setFont("helvetica", "bold");
@@ -138,7 +137,8 @@ export const PrintBill = ({
       theme: "plain",
       styles: { fontSize: 7, cellPadding: 0.8 },
       headStyles: { fontStyle: "bold", lineWidth: { top: 0.2, bottom: 0.2 } },
-      margin: { left: 3, right: 3 },
+      margin: { left: 3, right: 3, top: 0, bottom: 0 },
+      pageBreak: "avoid",
       columnStyles: {
         1: { halign: "right" },
         2: { halign: "right" },
@@ -164,8 +164,20 @@ export const PrintBill = ({
     doc.text(`UPI: ${upiId}`, cx, fy, { align: "center" });
     fy += 4;
     doc.text("Thank you! Visit again.", cx, fy, { align: "center" });
+    return fy + 4;
+  };
+
+  /** Two-pass build: measure the content, then emit a page of exactly that height. */
+  const buildPdf = () => {
+    if (!bill) return null;
+    const width = paper === "58mm" ? 58 : 80;
+    const probe = new jsPDF({ unit: "mm", format: [width, 2000] });
+    const height = Math.max(40, Math.ceil(renderPdf(probe, width)));
+    const doc = new jsPDF({ unit: "mm", format: [width, height] });
+    renderPdf(doc, width);
     return doc;
   };
+
 
   const receiptHtml = () => {
     if (!bill) return "";
