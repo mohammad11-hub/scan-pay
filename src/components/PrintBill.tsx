@@ -12,10 +12,10 @@ import { Printer, Share2, Download, Loader2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { toPng } from "html-to-image";
 import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
+import { generateReceiptImage } from "@/lib/receiptImage";
 
 interface Props {
   items: CartItem[];
