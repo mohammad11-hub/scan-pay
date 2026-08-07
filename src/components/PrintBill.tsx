@@ -156,45 +156,22 @@ export const PrintBill = ({
     return doc;
   };
 
-  const handlePrint = () => {
-    if (!receiptRef.current || !bill) return;
-    setBusy("print");
-    try {
-      const w = window.open("", "_blank", "width=420,height=640");
-      if (!w) {
-        toast.error("Pop-up blocked");
-        return;
-      }
-      const widthMm = paper === "58mm" ? "58mm" : "80mm";
-      w.document.write(`<!doctype html><html><head><title>${bill.billNo}</title>
-<style>
-  @page { size: ${widthMm} auto; margin: 3mm; }
-  body { font-family: 'Courier New', monospace; color:#000; font-size:11px; margin:0; padding:6px; width:${widthMm}; }
-  h1 { font-size:15px; margin:0 0 4px; text-align:center; }
-  .meta { text-align:center; font-size:10px; margin-bottom:4px; }
-  hr { border:none; border-top:1px dashed #000; margin:4px 0; }
-  table { width:100%; border-collapse:collapse; font-size:10px; }
-  th, td { padding:2px 0; text-align:left; }
-  .num { text-align:right; }
-  .total { font-size:13px; font-weight:bold; }
-  .qr { display:flex; flex-direction:column; align-items:center; margin-top:6px; }
-  .qr img { width: ${paper === "58mm" ? "120px" : "150px"}; height: auto; }
-  .foot { text-align:center; font-size:9px; margin-top:4px; }
-</style></head><body>
-<h1>${shopName}</h1>
+  const receiptHtml = () => {
+    if (!bill) return "";
+    return `<h1>${shopName}</h1>
 <div class="meta">Bill: ${bill.billNo}<br/>${bill.date}${
-        customerPhone ? `<br/>Customer: +91 ${customerPhone}` : ""
-      }</div>
+      customerPhone ? `<br/>Customer: +91 ${customerPhone}` : ""
+    }</div>
 <hr/>
 <table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amt</th></tr></thead>
 <tbody>${items
-        .map(
-          (i) =>
-            `<tr><td>${i.name}</td><td class="num">${i.quantity}</td><td class="num">${i.price.toFixed(
-              2
-            )}</td><td class="num">${(i.price * i.quantity).toFixed(2)}</td></tr>`
-        )
-        .join("")}</tbody></table>
+      .map(
+        (i) =>
+          `<tr><td>${i.name}</td><td class="num">${i.quantity}</td><td class="num">${i.price.toFixed(
+            2
+          )}</td><td class="num">${(i.price * i.quantity).toFixed(2)}</td></tr>`
+      )
+      .join("")}</tbody></table>
 <hr/>
 <table><tbody>
 <tr><td>Total Items</td><td class="num">${totalItems}</td></tr>
@@ -202,13 +179,39 @@ export const PrintBill = ({
 </tbody></table>
 <hr/>
 <div class="qr"><div>Scan to Pay (UPI)</div>${
-        qrDataUrl ? `<img src="${qrDataUrl}" alt="UPI QR"/>` : ""
-      }<div style="font-size:9px;margin-top:3px;">${upiId}</div></div>
-<div class="foot">Thank you! Visit again.</div>
-<script>window.onload=()=>{setTimeout(()=>{window.print();},250);};<\/script>
-</body></html>`);
-      w.document.close();
-      toast.success("Print preview opened");
+      qrDataUrl ? `<img src="${qrDataUrl}" alt="UPI QR"/>` : ""
+    }<div style="font-size:9px;margin-top:3px;">${upiId}</div></div>
+<div class="foot">Thank you! Visit again.</div>`;
+  };
+
+  const handlePrint = async () => {
+    if (!bill) return;
+    setBusy("print");
+    try {
+      const res = await printReceipt(
+        {
+          shopName,
+          billNo: bill.billNo,
+          date: bill.date,
+          customerPhone,
+          items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+          totalItems,
+          total,
+          upiId,
+          upiUrl,
+          paper,
+        },
+        receiptHtml(),
+        printMode
+      );
+      if (res.silent) {
+        toast.success(`Printing on ${paper} thermal printer`);
+        setOpen(false);
+      } else {
+        toast.info(
+          "Browsers can't print silently. Install the app (Android/Desktop) for one-click thermal printing."
+        );
+      }
     } catch (e) {
       console.error(e);
       toast.error("Print failed");
@@ -216,6 +219,7 @@ export const PrintBill = ({
       setBusy(null);
     }
   };
+
 
   const handleDownloadPdf = () => {
     if (!bill) return;
