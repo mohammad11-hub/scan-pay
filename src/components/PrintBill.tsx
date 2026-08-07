@@ -12,10 +12,10 @@ import { Printer, Share2, Download, Loader2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { toPng } from "html-to-image";
 import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
+import { generateReceiptImage } from "@/lib/receiptImage";
 
 interface Props {
   items: CartItem[];
@@ -226,17 +226,23 @@ export const PrintBill = ({
   };
 
   const handleShareWhatsApp = async () => {
-    if (!bill || !receiptRef.current) return;
+    if (!bill) return;
     const phone = sanitizePhone(customerPhone);
     setBusy("share");
     try {
-      // Render receipt card to image
-      const dataUrl = await toPng(receiptRef.current, {
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-        cacheBust: true,
+      // Generate a professional thermal receipt PNG (dynamic height, fixed width)
+      const blob = await generateReceiptImage({
+        shopName,
+        billNo: bill.billNo,
+        date: bill.date,
+        customerPhone,
+        items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
+        totalItems,
+        total,
+        upiId,
+        qrDataUrl,
+        paper,
       });
-      const blob = await (await fetch(dataUrl)).blob();
       const fileName = `${bill.billNo}.png`;
       const file = new File([blob], fileName, { type: "image/png" });
 
