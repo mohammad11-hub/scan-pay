@@ -49,9 +49,20 @@ export const PrintBill = ({
   const receiptRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<null | "print" | "pdf" | "share">(null);
-  const [paper, setPaper] = useState<PaperSize>("80mm");
+  const [paper, setPaper] = useState<PaperSize>(() => getPrinterSettings().paper);
+  const [printMode, setPrintMode] = useState<PrintMode>(() => getPrinterSettings().mode);
   const [bill, setBill] = useState<{ billNo: string; date: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const canPrintSilently = hasNativeBridge() || isAndroidApp();
+
+  const updatePaper = (p: PaperSize) => {
+    setPaper(p);
+    savePrinterSettings({ mode: printMode, paper: p });
+  };
+  const updateMode = (m: PrintMode) => {
+    setPrintMode(m);
+    savePrinterSettings({ mode: m, paper });
+  };
 
   const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(shopName)}&am=${total.toFixed(
     2
