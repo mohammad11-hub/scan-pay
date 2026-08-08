@@ -1,5 +1,5 @@
 import { QRCodeSVG } from "qrcode.react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,8 +22,16 @@ import {
   savePrinterSettings,
   hasNativeBridge,
   isAndroidApp,
+  isAndroid,
+  openRawBtPlayStore,
+  printLog,
+  subscribePrintLogs,
+  clearPrintLogs,
+  getPrintLogs,
+  type PrintLogEntry,
   type PrintMode,
 } from "@/lib/printer";
+
 
 interface Props {
   items: CartItem[];
@@ -53,7 +61,18 @@ export const PrintBill = ({
   const [printMode, setPrintMode] = useState<PrintMode>(() => getPrinterSettings().mode);
   const [bill, setBill] = useState<{ billNo: string; date: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const canPrintSilently = hasNativeBridge() || isAndroidApp();
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<PrintLogEntry[]>(() => getPrintLogs());
+  const canPrintSilently = hasNativeBridge() || isAndroidApp() || isAndroid();
+
+  useEffect(() => {
+    const un = subscribePrintLogs(setLogs);
+    return () => {
+      un();
+    };
+  }, []);
+
+
 
   const updatePaper = (p: PaperSize) => {
     setPaper(p);
@@ -209,7 +228,9 @@ export const PrintBill = ({
 
   const handlePrint = async () => {
     if (!bill) return;
+    clearPrintLogs();
     setBusy("print");
+
     try {
       const res = await printReceipt(
         {
@@ -227,21 +248,33 @@ export const PrintBill = ({
         receiptHtml(),
         printMode
       );
-      if (res.silent) {
-        toast.success(`Printing on ${paper} thermal printer`);
+      if (res.ok && res.silent) {
+        toast.success("Print Successful", {
+          description: `Receipt sent to your ${paper} thermal printer via ${res.via === "rawbt" || res.via === "capacitor" ? "RawBT" : "printer bridge"}.`,
+        });
         setOpen(false);
+      } else if (res.errorCode === "no-rawbt") {
+        toast.error("RawBT is not installed", {
+          description: res.error,
+          duration: 12000,
+          action: { label: "Install", onClick: () => openRawBtPlayStore() },
+        });
+        setShowLogs(true);
+      } else if (!res.ok) {
+        toast.error("Printing failed", { description: res.error, duration: 10000 });
+        setShowLogs(true);
       } else {
-        toast.info(
-          "Browsers can't print silently. Install the app (Android/Desktop) for one-click thermal printing."
-        );
+        toast.info("Browser print", { description: res.error });
       }
-    } catch (e) {
-      console.error(e);
-      toast.error("Print failed");
+    } catch (e: any) {
+      printLog("Unhandled print exception", String(e?.message || e), "error");
+      toast.error("Printing failed", { description: String(e?.message || e) });
+      setShowLogs(true);
     } finally {
       setBusy(null);
     }
   };
+
 
 
   const handleDownloadPdf = () => {
@@ -421,11 +454,57 @@ export const PrintBill = ({
             </div>
             <p className="mt-2 text-[11px] text-foreground/60">
               {canPrintSilently
-                ? "Direct thermal printing ready — one click, no print dialog."
-                : "Web browsers block silent printing. In the Android app (RawBT) or desktop app, printing starts instantly with no dialog."}
+                ? "Direct thermal printing ready — one tap sends the receipt straight to RawBT, no print dialog."
+                : "Web browsers block silent printing. In the Android app with RawBT, printing starts instantly with no dialog."}
             </p>
+            <div className="mt-1 flex items-center gap-3">
+              <button
+                onClick={() => setShowLogs((v) => !v)}
+                className="text-[11px] font-semibold text-foreground/70 underline"
+              >
+                {showLogs ? "Hide" : "Show"} print logs
+              </button>
+              {isAndroid() && (
+                <button
+                  onClick={openRawBtPlayStore}
+                  className="text-[11px] font-semibold text-foreground/70 underline"
+                >
+                  Install RawBT
+                </button>
+              )}
+            </div>
+            {showLogs && (
+              <div className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-black/80 p-2 font-mono text-[10px] leading-snug text-white/90">
+                {logs.length === 0 ? (
+                  <p className="opacity-60">No print activity yet.</p>
+                ) : (
+                  logs.map((l, i) => (
+                    <div
+                      key={i}
+                      className={
+                        l.level === "error"
+                          ? "text-red-300"
+                          : l.level === "ok"
+                          ? "text-emerald-300"
+                          : "text-white/80"
+                      }
+                    >
+                      {new Date(l.t).toLocaleTimeString("en-IN")} — {l.step}
+                      {l.detail ? `: ${l.detail}` : ""}
+                    </div>
+                  ))
+                )}
+                <button
+                  onClick={clearPrintLogs}
+                  className="mt-1 underline opacity-70"
+                >
+                  clear
+                </button>
+              </div>
+            )}
 
           </div>
+
 
           <div className="px-4 pb-4 max-h-[55vh] overflow-y-auto">
             {bill && (
