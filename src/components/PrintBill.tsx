@@ -452,11 +452,57 @@ export const PrintBill = ({
             </div>
             <p className="mt-2 text-[11px] text-foreground/60">
               {canPrintSilently
-                ? "Direct thermal printing ready — one click, no print dialog."
-                : "Web browsers block silent printing. In the Android app (RawBT) or desktop app, printing starts instantly with no dialog."}
+                ? "Direct thermal printing ready — one tap sends the receipt straight to RawBT, no print dialog."
+                : "Web browsers block silent printing. In the Android app with RawBT, printing starts instantly with no dialog."}
             </p>
+            <div className="mt-1 flex items-center gap-3">
+              <button
+                onClick={() => setShowLogs((v) => !v)}
+                className="text-[11px] font-semibold text-foreground/70 underline"
+              >
+                {showLogs ? "Hide" : "Show"} print logs
+              </button>
+              {isAndroid() && (
+                <button
+                  onClick={openRawBtPlayStore}
+                  className="text-[11px] font-semibold text-foreground/70 underline"
+                >
+                  Install RawBT
+                </button>
+              )}
+            </div>
+            {showLogs && (
+              <div className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-black/80 p-2 font-mono text-[10px] leading-snug text-white/90">
+                {logs.length === 0 ? (
+                  <p className="opacity-60">No print activity yet.</p>
+                ) : (
+                  logs.map((l, i) => (
+                    <div
+                      key={i}
+                      className={
+                        l.level === "error"
+                          ? "text-red-300"
+                          : l.level === "ok"
+                          ? "text-emerald-300"
+                          : "text-white/80"
+                      }
+                    >
+                      {new Date(l.t).toLocaleTimeString("en-IN")} — {l.step}
+                      {l.detail ? `: ${l.detail}` : ""}
+                    </div>
+                  ))
+                )}
+                <button
+                  onClick={clearPrintLogs}
+                  className="mt-1 underline opacity-70"
+                >
+                  clear
+                </button>
+              </div>
+            )}
 
           </div>
+
 
           <div className="px-4 pb-4 max-h-[55vh] overflow-y-auto">
             {bill && (
