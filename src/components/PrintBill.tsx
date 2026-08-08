@@ -227,21 +227,33 @@ export const PrintBill = ({
         receiptHtml(),
         printMode
       );
-      if (res.silent) {
-        toast.success(`Printing on ${paper} thermal printer`);
+      if (res.ok && res.silent) {
+        toast.success("Print Successful", {
+          description: `Receipt sent to your ${paper} thermal printer via ${res.via === "rawbt" || res.via === "capacitor" ? "RawBT" : "printer bridge"}.`,
+        });
         setOpen(false);
+      } else if (res.errorCode === "no-rawbt") {
+        toast.error("RawBT is not installed", {
+          description: res.error,
+          duration: 12000,
+          action: { label: "Install", onClick: () => openRawBtPlayStore() },
+        });
+        setShowLogs(true);
+      } else if (!res.ok) {
+        toast.error("Printing failed", { description: res.error, duration: 10000 });
+        setShowLogs(true);
       } else {
-        toast.info(
-          "Browsers can't print silently. Install the app (Android/Desktop) for one-click thermal printing."
-        );
+        toast.info("Browser print", { description: res.error });
       }
-    } catch (e) {
-      console.error(e);
-      toast.error("Print failed");
+    } catch (e: any) {
+      printLog("Unhandled print exception", String(e?.message || e), "error");
+      toast.error("Printing failed", { description: String(e?.message || e) });
+      setShowLogs(true);
     } finally {
       setBusy(null);
     }
   };
+
 
 
   const handleDownloadPdf = () => {
