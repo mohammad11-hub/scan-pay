@@ -22,8 +22,16 @@ import {
   savePrinterSettings,
   hasNativeBridge,
   isAndroidApp,
+  isAndroid,
+  openRawBtPlayStore,
+  printLog,
+  subscribePrintLogs,
+  clearPrintLogs,
+  getPrintLogs,
+  type PrintLogEntry,
   type PrintMode,
 } from "@/lib/printer";
+
 
 interface Props {
   items: CartItem[];
