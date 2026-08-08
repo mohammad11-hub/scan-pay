@@ -457,8 +457,39 @@ export const PrintBill = ({
             <p className="mt-2 text-[11px] text-foreground/60">
               {canPrintSilently
                 ? "Direct thermal printing ready — one tap sends the receipt straight to RawBT, no print dialog."
-                : "Web browsers block silent printing. In the Android app with RawBT, printing starts instantly with no dialog."}
+                : canPrintDirectDesktop()
+                ? deviceReady
+                  ? "Printer connected — printing goes straight to the thermal printer, no print dialog."
+                  : "Connect your thermal printer once (USB / Serial / Bluetooth) and printing happens directly, without any print dialog."
+                : "This browser can't reach printers directly. Use Chrome or Edge on desktop, or the Android app with RawBT."}
             </p>
+            {canPrintDirectDesktop() && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    ["usb", "Connect USB"],
+                    ["serial", "Connect Serial"],
+                    ["bluetooth", "Connect Bluetooth"],
+                  ] as ["usb" | "serial" | "bluetooth", string][]
+                ).map(([kind, label]) => (
+                  <button
+                    key={kind}
+                    onClick={async () => {
+                      const ok = await connectDesktopPrinter(kind);
+                      setDeviceReady(isDesktopPrinterConnected());
+                      if (ok) toast.success("Printer connected");
+                      else toast.error("Could not connect printer", { description: "Pick your thermal printer in the browser prompt." });
+                    }}
+                    className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-foreground/80 backdrop-blur"
+                  >
+                    {label}
+                  </button>
+                ))}
+                {deviceReady && (
+                  <span className="text-[11px] font-semibold text-emerald-700">● Ready</span>
+                )}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-3">
               <button
                 onClick={() => setShowLogs((v) => !v)}
@@ -475,6 +506,7 @@ export const PrintBill = ({
                 </button>
               )}
             </div>
+
             {showLogs && (
               <div className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-black/80 p-2 font-mono text-[10px] leading-snug text-white/90">
                 {logs.length === 0 ? (
