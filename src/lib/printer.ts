@@ -556,14 +556,29 @@ export const printReceipt = async (
     printLog("Native bridge unavailable — falling through", undefined, "error");
   }
 
+  if (mode === "usb") {
+    return await printWebDevice(bytes, true);
+  }
+
   if (mode === "rawbt" || (mode === "auto" && canUseRawBt())) {
     const res = await printRawBt(bytes);
     if (res.ok) return res;
     if (mode === "rawbt") return res; // explicit RawBT: surface the real error
-    printLog("RawBT path failed in auto mode — using browser fallback", undefined, "error");
+    printLog("RawBT path failed in auto mode — trying direct device print", undefined, "error");
+    const web = await printWebDevice(bytes, false);
+    if (web.ok) return web;
     printBrowser(fallbackHtml, receipt.paper);
     return { ...res, via: "browser", silent: false, ok: false };
   }
+
+  // Desktop / any browser: direct device print first, never window.print() if it works.
+  if (mode === "auto" && canPrintDirectDesktop()) {
+    const web = await printWebDevice(bytes, isDesktopPrinterConnected() ? false : true);
+    if (web.ok) return web;
+    printLog("Direct device print unavailable", web.error, "error");
+    return web;
+  }
+
 
   printBrowser(fallbackHtml, receipt.paper);
   return {
