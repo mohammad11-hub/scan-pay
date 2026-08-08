@@ -13,7 +13,7 @@
 import { buildEscposReceipt, toBase64, type EscposReceipt } from "./escpos";
 
 export type PaperSize = "58mm" | "80mm";
-export type PrintMode = "auto" | "rawbt" | "native" | "browser";
+export type PrintMode = "auto" | "rawbt" | "native" | "usb" | "browser";
 
 const SETTINGS_KEY = "printer_settings_v1";
 const RAWBT_PACKAGE = "ru.a402d.rawbtprinter";
