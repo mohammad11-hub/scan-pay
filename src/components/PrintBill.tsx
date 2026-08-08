@@ -228,7 +228,9 @@ export const PrintBill = ({
 
   const handlePrint = async () => {
     if (!bill) return;
+    clearPrintLogs();
     setBusy("print");
+
     try {
       const res = await printReceipt(
         {
