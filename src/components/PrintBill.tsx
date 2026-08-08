@@ -61,7 +61,12 @@ export const PrintBill = ({
   const [printMode, setPrintMode] = useState<PrintMode>(() => getPrinterSettings().mode);
   const [bill, setBill] = useState<{ billNo: string; date: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const canPrintSilently = hasNativeBridge() || isAndroidApp();
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<PrintLogEntry[]>(() => getPrintLogs());
+  const canPrintSilently = hasNativeBridge() || isAndroidApp() || isAndroid();
+
+  useEffect(() => subscribePrintLogs(setLogs), []);
+
 
   const updatePaper = (p: PaperSize) => {
     setPaper(p);
