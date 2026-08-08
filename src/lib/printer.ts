@@ -13,7 +13,7 @@
 import { buildEscposReceipt, toBase64, type EscposReceipt } from "./escpos";
 
 export type PaperSize = "58mm" | "80mm";
-export type PrintMode = "auto" | "rawbt" | "native" | "browser";
+export type PrintMode = "auto" | "rawbt" | "native" | "usb" | "browser";
 
 const SETTINGS_KEY = "printer_settings_v1";
 const RAWBT_PACKAGE = "ru.a402d.rawbtprinter";
@@ -93,13 +93,13 @@ export const isAndroidApp = () =>
 /** RawBT can be attempted on any Android device (app or Chrome). */
 export const canUseRawBt = () => isAndroid();
 
-export type PrintVia = "native" | "capacitor" | "rawbt" | "browser";
+export type PrintVia = "native" | "capacitor" | "rawbt" | "usb" | "serial" | "bluetooth" | "browser";
 export type PrintResult = {
   silent: boolean;
   via: PrintVia;
   ok: boolean;
   error?: string;
-  errorCode?: "no-rawbt" | "not-android" | "native-failed" | "unknown";
+  errorCode?: "no-rawbt" | "not-android" | "native-failed" | "no-device" | "unsupported" | "unknown";
 };
 
 /* --------------------------------------------------------------- native ES */
@@ -255,7 +255,218 @@ export const openRawBtPlayStore = () => {
   navigateTo(RAWBT_PLAY_URL);
 };
 
+/* ------------------------------------------- desktop direct print (no dialog) */
+// Chrome/Edge desktop can talk to a thermal printer directly through WebUSB,
+// Web Serial or Web Bluetooth — raw ESC/POS bytes, zero print dialog.
+
+export const hasWebUsb = () => !!(navigator as any).usb;
+export const hasWebSerial = () => !!(navigator as any).serial;
+export const hasWebBluetooth = () => !!(navigator as any).bluetooth;
+export const canPrintDirectDesktop = () => hasWebUsb() || hasWebSerial() || hasWebBluetooth();
+
+let usbDevice: any = null;
+let usbIface = 0;
+let usbEndpoint = 1;
+let serialPort: any = null;
+let bleChar: any = null;
+
+const chunk = (bytes: Uint8Array, size: number) => {
+  const out: Uint8Array[] = [];
+  for (let i = 0; i < bytes.length; i += size) out.push(bytes.slice(i, i + size));
+  return out;
+};
+
+/* ---- WebUSB ---- */
+
+const openUsb = async (device: any) => {
+  await device.open();
+  if (device.configuration === null) await device.selectConfiguration(1);
+  const iface = device.configuration.interfaces.find((i: any) =>
+    i.alternates.some((a: any) => a.interfaceClass === 7)
+  ) ?? device.configuration.interfaces[0];
+  usbIface = iface.interfaceNumber;
+  try {
+    await device.claimInterface(usbIface);
+  } catch (e: any) {
+    printLog("USB claimInterface failed", String(e?.message || e), "error");
+    throw e;
+  }
+  const alt = iface.alternates[0];
+  const ep = alt.endpoints.find((e: any) => e.direction === "out");
+  usbEndpoint = ep ? ep.endpointNumber : 1;
+  usbDevice = device;
+  printLog("USB printer ready", `iface=${usbIface} • endpoint=${usbEndpoint}`, "ok");
+};
+
+const getUsbDevice = async (allowPrompt: boolean) => {
+  if (usbDevice?.opened) return usbDevice;
+  const usb = (navigator as any).usb;
+  if (!usb) return null;
+  const granted = await usb.getDevices();
+  const known = granted.find((d: any) =>
+    d.configuration === null
+      ? true
+      : d.configuration.interfaces.some((i: any) =>
+          i.alternates.some((a: any) => a.interfaceClass === 7)
+        )
+  ) ?? granted[0];
+  if (known) {
+    await openUsb(known);
+    return usbDevice;
+  }
+  if (!allowPrompt) return null;
+  printLog("Asking for USB printer permission");
+  const device = await usb.requestDevice({ filters: [{ classCode: 7 }, {}] });
+  await openUsb(device);
+  return usbDevice;
+};
+
+/* ---- Web Serial ---- */
+
+const getSerialPort = async (allowPrompt: boolean) => {
+  if (serialPort?.writable) return serialPort;
+  const serial = (navigator as any).serial;
+  if (!serial) return null;
+  const ports = await serial.getPorts();
+  let port = ports[0];
+  if (!port) {
+    if (!allowPrompt) return null;
+    printLog("Asking for serial printer permission");
+    port = await serial.requestPort();
+  }
+  await port.open({ baudRate: 9600 });
+  serialPort = port;
+  printLog("Serial printer ready", undefined, "ok");
+  return serialPort;
+};
+
+/* ---- Web Bluetooth (BLE thermal printers) ---- */
+
+const BLE_SERVICES = [
+  "000018f0-0000-1000-8000-00805f9b34fb",
+  "0000ff00-0000-1000-8000-00805f9b34fb",
+  "0000ffe0-0000-1000-8000-00805f9b34fb",
+  "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+];
+
+const getBleChar = async (allowPrompt: boolean) => {
+  if (bleChar) return bleChar;
+  const bt = (navigator as any).bluetooth;
+  if (!bt || !allowPrompt) return null;
+  printLog("Asking for Bluetooth printer");
+  const device = await bt.requestDevice({
+    filters: BLE_SERVICES.map((s) => ({ services: [s] })),
+    optionalServices: BLE_SERVICES,
+  });
+  const server = await device.gatt.connect();
+  for (const s of BLE_SERVICES) {
+    try {
+      const service = await server.getPrimaryService(s);
+      const chars = await service.getCharacteristics();
+      const c = chars.find((ch: any) => ch.properties.write || ch.properties.writeWithoutResponse);
+      if (c) {
+        bleChar = c;
+        printLog("Bluetooth printer ready", s, "ok");
+        return bleChar;
+      }
+    } catch {}
+  }
+  return null;
+};
+
+/** Direct desktop/web print: USB → Serial → Bluetooth. No dialog, no window.print(). */
+const printWebDevice = async (bytes: Uint8Array, allowPrompt: boolean): Promise<PrintResult> => {
+  // 1) WebUSB
+  try {
+    const dev = await getUsbDevice(allowPrompt);
+    if (dev) {
+      printLog("Sending ESC/POS over WebUSB", `${bytes.length} bytes`);
+      for (const part of chunk(bytes, 8192)) await dev.transferOut(usbEndpoint, part);
+      printLog("Print success (WebUSB)", undefined, "ok");
+      return { silent: true, via: "usb", ok: true };
+    }
+  } catch (e: any) {
+    printLog("WebUSB print failed", String(e?.message || e), "error");
+  }
+
+  // 2) Web Serial
+  try {
+    const port = await getSerialPort(allowPrompt);
+    if (port) {
+      printLog("Sending ESC/POS over Web Serial", `${bytes.length} bytes`);
+      const writer = port.writable.getWriter();
+      try {
+        for (const part of chunk(bytes, 4096)) await writer.write(part);
+      } finally {
+        writer.releaseLock();
+      }
+      printLog("Print success (Web Serial)", undefined, "ok");
+      return { silent: true, via: "serial", ok: true };
+    }
+  } catch (e: any) {
+    printLog("Web Serial print failed", String(e?.message || e), "error");
+  }
+
+  // 3) Web Bluetooth
+  try {
+    const c = await getBleChar(allowPrompt);
+    if (c) {
+      printLog("Sending ESC/POS over Web Bluetooth", `${bytes.length} bytes`);
+      for (const part of chunk(bytes, 180)) {
+        if (c.writeValueWithoutResponse) await c.writeValueWithoutResponse(part);
+        else await c.writeValue(part);
+      }
+      printLog("Print success (Web Bluetooth)", undefined, "ok");
+      return { silent: true, via: "bluetooth", ok: true };
+    }
+  } catch (e: any) {
+    printLog("Web Bluetooth print failed", String(e?.message || e), "error");
+  }
+
+  return {
+    silent: false,
+    via: "usb",
+    ok: false,
+    errorCode: canPrintDirectDesktop() ? "no-device" : "unsupported",
+    error: canPrintDirectDesktop()
+      ? "No thermal printer connected. Click “Connect printer”, pick your printer (USB / Serial / Bluetooth) and print again."
+      : "This browser cannot talk to printers directly. Use Chrome or Edge on desktop for dialog-free printing.",
+  };
+};
+
+/** User-gesture pairing helper for the UI. */
+export const connectDesktopPrinter = async (
+  kind: "usb" | "serial" | "bluetooth"
+): Promise<boolean> => {
+  try {
+    if (kind === "usb") {
+      const usb = (navigator as any).usb;
+      if (!usb) return false;
+      const d = await usb.requestDevice({ filters: [{ classCode: 7 }, {}] });
+      await openUsb(d);
+      return true;
+    }
+    if (kind === "serial") {
+      const serial = (navigator as any).serial;
+      if (!serial) return false;
+      const port = await serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      serialPort = port;
+      printLog("Serial printer connected", undefined, "ok");
+      return true;
+    }
+    return !!(await getBleChar(true));
+  } catch (e: any) {
+    printLog(`Connect ${kind} printer failed`, String(e?.message || e), "error");
+    return false;
+  }
+};
+
+export const isDesktopPrinterConnected = () =>
+  !!(usbDevice?.opened || serialPort?.writable || bleChar);
+
 /* -------------------------------------------------------- browser fallback */
+
 
 const printBrowser = (html: string, paper: PaperSize) => {
   printLog("Browser fallback print (dialog will appear)");
@@ -345,14 +556,29 @@ export const printReceipt = async (
     printLog("Native bridge unavailable — falling through", undefined, "error");
   }
 
+  if (mode === "usb") {
+    return await printWebDevice(bytes, true);
+  }
+
   if (mode === "rawbt" || (mode === "auto" && canUseRawBt())) {
     const res = await printRawBt(bytes);
     if (res.ok) return res;
     if (mode === "rawbt") return res; // explicit RawBT: surface the real error
-    printLog("RawBT path failed in auto mode — using browser fallback", undefined, "error");
+    printLog("RawBT path failed in auto mode — trying direct device print", undefined, "error");
+    const web = await printWebDevice(bytes, false);
+    if (web.ok) return web;
     printBrowser(fallbackHtml, receipt.paper);
     return { ...res, via: "browser", silent: false, ok: false };
   }
+
+  // Desktop / any browser: direct device print first, never window.print() if it works.
+  if (mode === "auto" && canPrintDirectDesktop()) {
+    const web = await printWebDevice(bytes, isDesktopPrinterConnected() ? false : true);
+    if (web.ok) return web;
+    printLog("Direct device print unavailable", web.error, "error");
+    return web;
+  }
+
 
   printBrowser(fallbackHtml, receipt.paper);
   return {
