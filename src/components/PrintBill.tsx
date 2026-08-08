@@ -435,8 +435,10 @@ export const PrintBill = ({
                     ["auto", "Auto"],
                     ["rawbt", "RawBT"],
                     ["native", "Native"],
+                    ["usb", "Direct"],
                     ["browser", "Browser"],
                   ] as [PrintMode, string][]
+
                 ).map(([m, label]) => (
                   <button
                     key={m}
