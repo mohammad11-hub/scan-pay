@@ -65,7 +65,13 @@ export const PrintBill = ({
   const [logs, setLogs] = useState<PrintLogEntry[]>(() => getPrintLogs());
   const canPrintSilently = hasNativeBridge() || isAndroidApp() || isAndroid();
 
-  useEffect(() => subscribePrintLogs(setLogs), []);
+  useEffect(() => {
+    const un = subscribePrintLogs(setLogs);
+    return () => {
+      un();
+    };
+  }, []);
+
 
 
   const updatePaper = (p: PaperSize) => {
