@@ -93,13 +93,13 @@ export const isAndroidApp = () =>
 /** RawBT can be attempted on any Android device (app or Chrome). */
 export const canUseRawBt = () => isAndroid();
 
-export type PrintVia = "native" | "capacitor" | "rawbt" | "browser";
+export type PrintVia = "native" | "capacitor" | "rawbt" | "usb" | "serial" | "bluetooth" | "browser";
 export type PrintResult = {
   silent: boolean;
   via: PrintVia;
   ok: boolean;
   error?: string;
-  errorCode?: "no-rawbt" | "not-android" | "native-failed" | "unknown";
+  errorCode?: "no-rawbt" | "not-android" | "native-failed" | "no-device" | "unsupported" | "unknown";
 };
 
 /* --------------------------------------------------------------- native ES */
