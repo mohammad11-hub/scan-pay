@@ -66,6 +66,7 @@ export const PrintBill = ({
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState<PrintLogEntry[]>(() => getPrintLogs());
+  const [deviceReady, setDeviceReady] = useState(() => isDesktopPrinterConnected());
   const canPrintSilently = hasNativeBridge() || isAndroidApp() || isAndroid();
 
   useEffect(() => {
