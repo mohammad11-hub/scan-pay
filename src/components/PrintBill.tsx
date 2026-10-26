@@ -54,13 +54,6 @@ export const PrintBill = ({
     2
   )}&cu=INR&tn=${encodeURIComponent(shopName + " Bill")}`;
 
-  const sanitizePhone = (raw?: string) => {
-    if (!raw) return "";
-    const digits = raw.replace(/\D/g, "");
-    if (!digits) return "";
-    if (digits.length === 10) return `91${digits}`;
-    return digits;
-  };
 
   const openPreview = async () => {
     if (items.length === 0) {
@@ -421,9 +414,9 @@ export const PrintBill = ({
               {busy === "share" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Share2 className="h-4 w-4" />
+                <MessageSquare className="h-4 w-4" />
               )}
-              Share
+              Text
             </Button>
           </div>
         </DialogContent>
