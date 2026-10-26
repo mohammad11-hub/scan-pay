@@ -54,13 +54,6 @@ export const PrintBill = ({
     2
   )}&cu=INR&tn=${encodeURIComponent(shopName + " Bill")}`;
 
-  const sanitizePhone = (raw?: string) => {
-    if (!raw) return "";
-    const digits = raw.replace(/\D/g, "");
-    if (!digits) return "";
-    if (digits.length === 10) return `91${digits}`;
-    return digits;
-  };
 
   const openPreview = async () => {
     if (items.length === 0) {
@@ -245,10 +238,11 @@ export const PrintBill = ({
     }
   };
 
-  /** Shares the bill as a plain text message (item list + total + UPI) on WhatsApp. */
+  /** Shares the bill as a plain text message (SMS) via the phone's default messaging app. */
   const handleShareText = async () => {
     if (!bill) return;
-    const phone = sanitizePhone(customerPhone);
+    const digits = (customerPhone || "").replace(/\D/g, "");
+    const target = digits.length === 10 ? `+91${digits}` : "";
     setBusy("share");
     try {
       const itemLines = items
@@ -259,41 +253,26 @@ export const PrintBill = ({
         .join("\n");
 
       const message =
-        `*${shopName}*\n` +
+        `${shopName}\n` +
         `Bill: ${bill.billNo}\n` +
         `Date: ${bill.date}\n` +
-        (customerPhone ? `Customer: +91 ${customerPhone}\n` : "") +
-        `\n*Items (${totalItems}):*\n${itemLines}\n` +
-        `\n*Total: Rs.${total.toFixed(2)}*\n` +
+        (customerPhone ? `Customer: +91 ${digits}\n` : "") +
+        `\nItems (${totalItems}):\n${itemLines}\n` +
+        `\nTotal: Rs.${total.toFixed(2)}\n` +
         `\nPay via UPI: ${upiId}\n` +
         `Thank you! Visit again.`;
 
-      if (phone) {
-        const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-        const win = window.open(waUrl, "_blank");
-        if (!win) window.location.href = waUrl;
-        toast.success("WhatsApp opened with the bill message");
-        return;
-      }
+      // iOS uses & before body, Android/others use ?
+      const sep = /iPad|iPhone|iPod/i.test(navigator.userAgent) ? "&" : "?";
+      const smsUrl = target
+        ? `sms:${target}${sep}body=${encodeURIComponent(message)}`
+        : `sms:${sep}body=${encodeURIComponent(message)}`;
 
-      const nav: any = navigator;
-      if (nav.share) {
-        try {
-          await nav.share({ title: `${shopName} Bill`, text: message });
-          toast.success("Bill shared");
-        } catch (e: any) {
-          if (e?.name !== "AbortError") throw e;
-        }
-        return;
-      }
-
-      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-      const win = window.open(waUrl, "_blank");
-      if (!win) window.location.href = waUrl;
-      toast.success("WhatsApp opened with the bill message");
+      window.location.href = smsUrl;
+      toast.success(target ? "Message app opened for +91 " + digits : "Message app opened with the bill text");
     } catch (e) {
       console.error(e);
-      toast.error("Could not share the bill");
+      toast.error("Could not open the message app");
     } finally {
       setBusy(null);
     }
@@ -435,9 +414,9 @@ export const PrintBill = ({
               {busy === "share" ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Share2 className="h-4 w-4" />
+                <MessageSquare className="h-4 w-4" />
               )}
-              Share
+              Text
             </Button>
           </div>
         </DialogContent>
