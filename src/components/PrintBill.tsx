@@ -1,5 +1,5 @@
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,26 +15,7 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
-import { generateReceiptImage } from "@/lib/receiptImage";
-import {
-  printReceipt,
-  getPrinterSettings,
-  savePrinterSettings,
-  hasNativeBridge,
-  isAndroidApp,
-  isAndroid,
-  openRawBtPlayStore,
-  canPrintDirectDesktop,
-  connectDesktopPrinter,
-  isDesktopPrinterConnected,
-  printLog,
-  subscribePrintLogs,
-  clearPrintLogs,
-  getPrintLogs,
-  type PrintLogEntry,
-  type PrintMode,
-} from "@/lib/printer";
-
+import { printReceipt, getPrinterSettings, savePrinterSettings } from "@/lib/printer";
 
 interface Props {
   items: CartItem[];
@@ -57,34 +38,16 @@ export const PrintBill = ({
   customerPhone,
   disabled,
 }: Props) => {
-  const receiptRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<null | "print" | "pdf" | "share">(null);
   const [paper, setPaper] = useState<PaperSize>(() => getPrinterSettings().paper);
-  const [printMode, setPrintMode] = useState<PrintMode>(() => getPrinterSettings().mode);
   const [bill, setBill] = useState<{ billNo: string; date: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [showLogs, setShowLogs] = useState(false);
-  const [logs, setLogs] = useState<PrintLogEntry[]>(() => getPrintLogs());
-  const [deviceReady, setDeviceReady] = useState(() => isDesktopPrinterConnected());
-  const canPrintSilently = hasNativeBridge() || isAndroidApp() || isAndroid();
-
-  useEffect(() => {
-    const un = subscribePrintLogs(setLogs);
-    return () => {
-      un();
-    };
-  }, []);
-
-
 
   const updatePaper = (p: PaperSize) => {
     setPaper(p);
-    savePrinterSettings({ mode: printMode, paper: p });
-  };
-  const updateMode = (m: PrintMode) => {
-    setPrintMode(m);
-    savePrinterSettings({ mode: m, paper });
+    savePrinterSettings({ mode: getPrinterSettings().mode, paper: p });
+    toast.success(`Paper size set to ${p}`);
   };
 
   const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(shopName)}&am=${total.toFixed(
@@ -201,7 +164,6 @@ export const PrintBill = ({
     return doc;
   };
 
-
   const receiptHtml = () => {
     if (!bill) return "";
     return `<h1>${shopName}</h1>
@@ -232,9 +194,7 @@ export const PrintBill = ({
 
   const handlePrint = async () => {
     if (!bill) return;
-    clearPrintLogs();
     setBusy("print");
-
     try {
       const res = await printReceipt(
         {
@@ -250,36 +210,24 @@ export const PrintBill = ({
           paper,
         },
         receiptHtml(),
-        printMode
+        "auto"
       );
       if (res.ok && res.silent) {
         toast.success("Print Successful", {
-          description: `Receipt sent to your ${paper} thermal printer via ${res.via === "rawbt" || res.via === "capacitor" ? "RawBT" : "printer bridge"}.`,
+          description: `Receipt sent straight to the thermal printer (${paper}).`,
         });
         setOpen(false);
-      } else if (res.errorCode === "no-rawbt") {
-        toast.error("RawBT is not installed", {
-          description: res.error,
-          duration: 12000,
-          action: { label: "Install", onClick: () => openRawBtPlayStore() },
-        });
-        setShowLogs(true);
       } else if (!res.ok) {
-        toast.error("Printing failed", { description: res.error, duration: 10000 });
-        setShowLogs(true);
+        toast.error("Printing failed", { description: res.error });
       } else {
-        toast.info("Browser print", { description: res.error });
+        toast.info("Print dialog opened", { description: res.error });
       }
     } catch (e: any) {
-      printLog("Unhandled print exception", String(e?.message || e), "error");
       toast.error("Printing failed", { description: String(e?.message || e) });
-      setShowLogs(true);
     } finally {
       setBusy(null);
     }
   };
-
-
 
   const handleDownloadPdf = () => {
     if (!bill) return;
@@ -297,97 +245,55 @@ export const PrintBill = ({
     }
   };
 
-  const handleShareWhatsApp = async () => {
+  /** Shares the bill as a plain text message (item list + total + UPI) on WhatsApp. */
+  const handleShareText = async () => {
     if (!bill) return;
     const phone = sanitizePhone(customerPhone);
     setBusy("share");
     try {
-      // Generate a professional thermal receipt PNG (dynamic height, fixed width)
-      const blob = await generateReceiptImage({
-        shopName,
-        billNo: bill.billNo,
-        date: bill.date,
-        customerPhone,
-        items: items.map((i) => ({ name: i.name, price: i.price, quantity: i.quantity })),
-        totalItems,
-        total,
-        upiId,
-        qrDataUrl,
-        paper,
-      });
-      const fileName = `${bill.billNo}.png`;
-      const file = new File([blob], fileName, { type: "image/png" });
-
-      const nav: any = navigator;
-      const canShareFile = nav.canShare && nav.canShare({ files: [file] });
-
-      // If we have a customer phone, ALWAYS go directly to that WhatsApp chat
-      // (the native share sheet cannot target a specific contact).
-      if (!phone && canShareFile) {
-        try {
-          await nav.share({
-            files: [file],
-            title: `${shopName} Receipt`,
-            text:
-              `*${shopName}*\nBill: ${bill.billNo}\nDate: ${bill.date}\n` +
-              (customerPhone ? `Customer: +91 ${customerPhone}\n` : "") +
-              `\n*Items (${totalItems}):*\n` +
-              items
-                .map(
-                  (i, idx) =>
-                    `${idx + 1}. ${i.name} x${i.quantity} = Rs.${(
-                      i.price * i.quantity
-                    ).toFixed(2)}`
-                )
-                .join("\n") +
-              `\n\n*Total: Rs.${total.toFixed(2)}*\nThank you!`,
-          });
-          toast.success("Receipt shared");
-          return;
-        } catch (e: any) {
-          if (e?.name === "AbortError") return;
-        }
-      }
-
-      // Fallback: download image + open WhatsApp chat directly with phone
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-
       const itemLines = items
         .map(
           (i, idx) =>
-            `${idx + 1}. ${i.name} x${i.quantity} @ Rs.${i.price.toFixed(2)} = Rs.${(
-              i.price * i.quantity
-            ).toFixed(2)}`
+            `${idx + 1}. ${i.name} x${i.quantity} = Rs.${(i.price * i.quantity).toFixed(2)}`
         )
         .join("\n");
 
       const message =
-        `*${shopName}*\nBill: ${bill.billNo}\nDate: ${bill.date}\n` +
+        `*${shopName}*\n` +
+        `Bill: ${bill.billNo}\n` +
+        `Date: ${bill.date}\n` +
         (customerPhone ? `Customer: +91 ${customerPhone}\n` : "") +
         `\n*Items (${totalItems}):*\n${itemLines}\n` +
         `\n*Total: Rs.${total.toFixed(2)}*\n` +
-        `\nPay UPI: ${upiId}\n` +
-        `\nReceipt image downloaded — please attach it here.\nThank you!`;
+        `\nPay via UPI: ${upiId}\n` +
+        `Thank you! Visit again.`;
 
-      const waUrl = phone
-        ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-        : `https://wa.me/?text=${encodeURIComponent(message)}`;
-      const win = window.open(waUrl, "_blank");
-      if (!win) {
-        // Last resort if popup blocked
-        window.location.href = waUrl;
+      if (phone) {
+        const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        const win = window.open(waUrl, "_blank");
+        if (!win) window.location.href = waUrl;
+        toast.success("WhatsApp opened with the bill message");
+        return;
       }
-      toast.success("Receipt downloaded — WhatsApp opened");
+
+      const nav: any = navigator;
+      if (nav.share) {
+        try {
+          await nav.share({ title: `${shopName} Bill`, text: message });
+          toast.success("Bill shared");
+        } catch (e: any) {
+          if (e?.name !== "AbortError") throw e;
+        }
+        return;
+      }
+
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      const win = window.open(waUrl, "_blank");
+      if (!win) window.location.href = waUrl;
+      toast.success("WhatsApp opened with the bill message");
     } catch (e) {
       console.error(e);
-      toast.error("Could not share receipt");
+      toast.error("Could not share the bill");
     } finally {
       setBusy(null);
     }
@@ -407,148 +313,35 @@ export const PrintBill = ({
 
       <Dialog open={open} onOpenChange={(v) => !busy && setOpen(v)}>
         <DialogContent className="max-w-md p-0 overflow-hidden border-white/40 backdrop-blur-xl bg-white/80 rounded-2xl">
-          <div
-            className="px-6 pt-6 pb-4"
-            style={{ background: "var(--gradient-primary)" }}
-          >
+          <div className="px-6 pt-6 pb-4" style={{ background: "var(--gradient-primary)" }}>
             <DialogHeader>
               <DialogTitle className="text-foreground">Receipt Preview</DialogTitle>
               <DialogDescription className="text-foreground/70">
-                Choose paper size, printer method and action
+                All selected items are included in the bill
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex items-center gap-3">
+              <span className="text-xs font-semibold text-foreground/80">Paper Size</span>
               <div className="inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
                 {(["58mm", "80mm"] as PaperSize[]).map((p) => (
                   <button
                     key={p}
                     onClick={() => updatePaper(p)}
                     className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                      paper === p
-                        ? "bg-white shadow text-foreground"
-                        : "text-foreground/60"
+                      paper === p ? "bg-white shadow text-foreground" : "text-foreground/60"
                     }`}
                   >
                     {p}
                   </button>
                 ))}
               </div>
-              <div className="inline-flex rounded-full bg-white/60 p-1 backdrop-blur">
-                {(
-                  [
-                    ["auto", "Auto"],
-                    ["rawbt", "RawBT"],
-                    ["native", "Native"],
-                    ["usb", "Direct"],
-                    ["browser", "Browser"],
-                  ] as [PrintMode, string][]
-
-                ).map(([m, label]) => (
-                  <button
-                    key={m}
-                    onClick={() => updateMode(m)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                      printMode === m
-                        ? "bg-white shadow text-foreground"
-                        : "text-foreground/60"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
             </div>
-            <p className="mt-2 text-[11px] text-foreground/60">
-              {canPrintSilently
-                ? "Direct thermal printing ready — one tap sends the receipt straight to RawBT, no print dialog."
-                : canPrintDirectDesktop()
-                ? deviceReady
-                  ? "Printer connected — printing goes straight to the thermal printer, no print dialog."
-                  : "Connect your thermal printer once (USB / Serial / Bluetooth) and printing happens directly, without any print dialog."
-                : "This browser can't reach printers directly. Use Chrome or Edge on desktop, or the Android app with RawBT."}
-            </p>
-            {canPrintDirectDesktop() && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {(
-                  [
-                    ["usb", "Connect USB"],
-                    ["serial", "Connect Serial"],
-                    ["bluetooth", "Connect Bluetooth"],
-                  ] as ["usb" | "serial" | "bluetooth", string][]
-                ).map(([kind, label]) => (
-                  <button
-                    key={kind}
-                    onClick={async () => {
-                      const ok = await connectDesktopPrinter(kind);
-                      setDeviceReady(isDesktopPrinterConnected());
-                      if (ok) toast.success("Printer connected");
-                      else toast.error("Could not connect printer", { description: "Pick your thermal printer in the browser prompt." });
-                    }}
-                    className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-foreground/80 backdrop-blur"
-                  >
-                    {label}
-                  </button>
-                ))}
-                {deviceReady && (
-                  <span className="text-[11px] font-semibold text-emerald-700">● Ready</span>
-                )}
-              </div>
-            )}
-            <div className="mt-1 flex items-center gap-3">
-              <button
-                onClick={() => setShowLogs((v) => !v)}
-                className="text-[11px] font-semibold text-foreground/70 underline"
-              >
-                {showLogs ? "Hide" : "Show"} print logs
-              </button>
-              {isAndroid() && (
-                <button
-                  onClick={openRawBtPlayStore}
-                  className="text-[11px] font-semibold text-foreground/70 underline"
-                >
-                  Install RawBT
-                </button>
-              )}
-            </div>
-
-            {showLogs && (
-              <div className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-black/80 p-2 font-mono text-[10px] leading-snug text-white/90">
-                {logs.length === 0 ? (
-                  <p className="opacity-60">No print activity yet.</p>
-                ) : (
-                  logs.map((l, i) => (
-                    <div
-                      key={i}
-                      className={
-                        l.level === "error"
-                          ? "text-red-300"
-                          : l.level === "ok"
-                          ? "text-emerald-300"
-                          : "text-white/80"
-                      }
-                    >
-                      {new Date(l.t).toLocaleTimeString("en-IN")} — {l.step}
-                      {l.detail ? `: ${l.detail}` : ""}
-                    </div>
-                  ))
-                )}
-                <button
-                  onClick={clearPrintLogs}
-                  className="mt-1 underline opacity-70"
-                >
-                  clear
-                </button>
-              </div>
-            )}
-
           </div>
-
 
           <div className="px-4 pb-4 max-h-[55vh] overflow-y-auto">
             {bill && (
               <div className="flex justify-center py-3">
                 <div
-                  ref={receiptRef}
                   className="bg-white text-black p-4 shadow-md rounded-md font-mono"
                   style={{ width: paper === "58mm" ? 220 : 300 }}
                 >
@@ -580,9 +373,7 @@ export const PrintBill = ({
                           <td className="py-0.5">{i.name}</td>
                           <td className="text-right">{i.quantity}</td>
                           <td className="text-right">{i.price.toFixed(2)}</td>
-                          <td className="text-right">
-                            {(i.price * i.quantity).toFixed(2)}
-                          </td>
+                          <td className="text-right">{(i.price * i.quantity).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -602,9 +393,7 @@ export const PrintBill = ({
                     <QRCodeSVG value={upiUrl} size={paper === "58mm" ? 110 : 140} level="M" />
                     <div className="text-[9px] mt-1">{upiId}</div>
                   </div>
-                  <div className="text-center text-[10px] mt-2">
-                    Thank you! Visit again.
-                  </div>
+                  <div className="text-center text-[10px] mt-2">Thank you! Visit again.</div>
                 </div>
               </div>
             )}
@@ -638,7 +427,7 @@ export const PrintBill = ({
               PDF
             </Button>
             <Button
-              onClick={handleShareWhatsApp}
+              onClick={handleShareText}
               disabled={!!busy}
               className="rounded-xl gap-1.5"
               style={{ background: "var(--gradient-primary)", color: "hsl(var(--foreground))" }}
