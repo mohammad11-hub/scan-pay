@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Printer, Share2, Download, Loader2, Receipt } from "lucide-react";
+import { Printer, MessageSquare, Download, Loader2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
