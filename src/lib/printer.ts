@@ -560,23 +560,18 @@ export const printReceipt = async (
     return await printWebDevice(bytes, true);
   }
 
-  if (mode === "rawbt" || (mode === "auto" && canUseRawBt())) {
-    const res = await printRawBt(bytes);
-    if (res.ok) return res;
-    if (mode === "rawbt") return res; // explicit RawBT: surface the real error
-    printLog("RawBT path failed in auto mode — trying direct device print", undefined, "error");
+  if (mode === "rawbt") return await printRawBt(bytes);
+
+  // Auto: try RawBT only on a real Android device, then any already-paired
+  // direct device, and finally the browser print dialog — never a hard error.
+  if (mode === "auto") {
+    if (canUseRawBt()) {
+      const res = await printRawBt(bytes);
+      if (res.ok) return res;
+      printLog("RawBT did not print — using the browser print dialog", res.error, "info");
+    }
     const web = await printWebDevice(bytes, false);
     if (web.ok) return web;
-    printBrowser(fallbackHtml, receipt.paper);
-    return { ...res, via: "browser", silent: false, ok: false };
-  }
-
-  // Desktop / any browser: direct device print first, never window.print() if it works.
-  if (mode === "auto" && canPrintDirectDesktop()) {
-    const web = await printWebDevice(bytes, isDesktopPrinterConnected() ? false : true);
-    if (web.ok) return web;
-    printLog("Direct device print unavailable", web.error, "error");
-    return web;
   }
 
 
