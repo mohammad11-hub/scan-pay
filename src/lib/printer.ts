@@ -467,41 +467,83 @@ export const isDesktopPrinterConnected = () =>
 
 /* -------------------------------------------------------- browser fallback */
 
+/** CSS px per mm at the 96dpi CSS reference. */
+const PX_PER_MM = 96 / 25.4;
 
-const printBrowser = (html: string, paper: PaperSize) => {
-  printLog("Browser fallback print (dialog will appear)");
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;width:0;height:0;border:0;left:-9999px;top:0;";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument!;
-  doc.open();
-  doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>
-  @page { size: ${paper} auto; margin: 0; }
+/** Shared stylesheet for the browser-print receipt (one continuous flow). */
+export const browserReceiptCss = (paper: PaperSize) => `
   html,body { margin:0; padding:0; background:#fff; }
-  body { width:${paper}; font-family:'Courier New',monospace; color:#000; font-size:11px; padding:2mm 3mm; }
+  body { box-sizing:border-box; width:${paper}; font-family:'Courier New',monospace; color:#000; font-size:11px; padding:2mm 3mm; }
   h1 { font-size:15px; margin:0 0 4px; text-align:center; }
   .meta { text-align:center; font-size:10px; }
   hr { border:none; border-top:1px dashed #000; margin:4px 0; }
   table { width:100%; border-collapse:collapse; font-size:10px; }
-  th,td { padding:1px 0; text-align:left; }
+  th,td { padding:1px 0; text-align:left; overflow-wrap:anywhere; word-break:break-word; }
   .num { text-align:right; }
   .total { font-size:13px; font-weight:bold; }
   .qr { text-align:center; margin-top:4px; }
   .qr img { width:${paper === "58mm" ? "110px" : "140px"}; height:auto; }
   .foot { text-align:center; font-size:9px; margin-top:4px; }
-  </style></head><body>${html}</body></html>`);
+  /* Continuous receipt: item rows, images and the totals/QR block never split across pages. */
+  tr, img, .endblock { break-inside: avoid; page-break-inside: avoid; }
+`;
+
+const imagesReady = (doc: Document) =>
+  Promise.all(
+    Array.from(doc.images).map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((res) => {
+            img.onload = () => res();
+            img.onerror = () => res();
+          })
+    )
+  );
+
+/**
+ * Measures the real receipt height and sets @page to exactly one page of that
+ * height, so any number of items prints as ONE continuous receipt — no second
+ * page, no blank space, no clipping. Waits for the QR image to finish loading
+ * before measuring. Returns the applied page height in mm.
+ */
+export const applyContinuousPage = async (doc: Document, paper: PaperSize): Promise<number> => {
+  await imagesReady(doc);
+  const px = Math.ceil(doc.documentElement.scrollHeight);
+  const mm = Math.max(30, Math.ceil(px / PX_PER_MM) + 1);
+  printLog("Receipt measured", `${px}px → one continuous page of ${mm}mm`, "ok");
+  const style = doc.createElement("style");
+  style.textContent = `@page { size: ${paper} ${mm}mm; margin: 0; }`;
+  doc.head.appendChild(style);
+  await new Promise((r) => setTimeout(r, 80)); // let the new @page settle
+  return mm;
+};
+
+const printBrowser = async (html: string, paper: PaperSize) => {
+  printLog("Browser fallback print (dialog will appear)");
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:0;border:0;visibility:hidden;";
+  // Real receipt width (+ slack) so wrapping and the height measurement are true to print.
+  iframe.style.width = `calc(${paper} + 40px)`;
+  iframe.style.height = "800px";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(
+    `<!doctype html><html><head><meta charset="utf-8"><style>${browserReceiptCss(
+      paper
+    )}</style></head><body>${html}</body></html>`
+  );
   doc.close();
-  const fire = () => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } finally {
-      setTimeout(() => iframe.remove(), 2000);
-    }
-  };
-  if (doc.readyState === "complete") setTimeout(fire, 150);
-  else iframe.onload = () => setTimeout(fire, 150);
+  try {
+    await applyContinuousPage(doc, paper);
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+  } catch (e: any) {
+    printLog("Browser print failed", String(e?.message || e), "error");
+  } finally {
+    setTimeout(() => iframe.remove(), 2000);
+  }
 };
 
 /* --------------------------------------------------------------- entrypoint */
