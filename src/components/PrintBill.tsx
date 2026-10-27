@@ -16,6 +16,7 @@ import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
 import { printReceipt, getPrinterSettings, savePrinterSettings } from "@/lib/printer";
+import { buildReceiptHtml } from "@/lib/receiptHtml";
 
 interface Props {
   items: CartItem[];
@@ -157,34 +158,6 @@ export const PrintBill = ({
     return doc;
   };
 
-  const receiptHtml = () => {
-    if (!bill) return "";
-    return `<h1>${shopName}</h1>
-<div class="meta">Bill: ${bill.billNo}<br/>${bill.date}${
-      customerPhone ? `<br/>Customer: +91 ${customerPhone}` : ""
-    }</div>
-<hr/>
-<table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amt</th></tr></thead>
-<tbody>${items
-      .map(
-        (i) =>
-          `<tr><td>${i.name}</td><td class="num">${i.quantity}</td><td class="num">${i.price.toFixed(
-            2
-          )}</td><td class="num">${(i.price * i.quantity).toFixed(2)}</td></tr>`
-      )
-      .join("")}</tbody></table>
-<hr/>
-<table><tbody>
-<tr><td>Total Items</td><td class="num">${totalItems}</td></tr>
-<tr class="total"><td>TOTAL</td><td class="num">Rs.${total.toFixed(2)}</td></tr>
-</tbody></table>
-<hr/>
-<div class="qr"><div>Scan to Pay (UPI)</div>${
-      qrDataUrl ? `<img src="${qrDataUrl}" alt="UPI QR"/>` : ""
-    }<div style="font-size:9px;margin-top:3px;">${upiId}</div></div>
-<div class="foot">Thank you! Visit again.</div>`;
-  };
-
   const handlePrint = async () => {
     if (!bill) return;
     setBusy("print");
@@ -202,7 +175,17 @@ export const PrintBill = ({
           upiUrl,
           paper,
         },
-        receiptHtml(),
+        buildReceiptHtml({
+          shopName,
+          billNo: bill.billNo,
+          date: bill.date,
+          customerPhone,
+          items: items.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+          totalItems,
+          total,
+          upiId,
+          qrDataUrl,
+        }),
         "auto"
       );
       if (res.ok && res.silent) {
