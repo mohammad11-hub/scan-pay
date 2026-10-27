@@ -617,7 +617,7 @@ export const printReceipt = async (
   }
 
 
-  printBrowser(fallbackHtml, receipt.paper);
+  await printBrowser(fallbackHtml, receipt.paper);
   return {
     silent: false,
     via: "browser",
