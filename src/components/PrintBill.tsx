@@ -16,6 +16,7 @@ import QRCode from "qrcode";
 import type { CartItem } from "./Cart";
 import { addBill } from "@/lib/billHistory";
 import { printReceipt, getPrinterSettings, savePrinterSettings } from "@/lib/printer";
+import { buildReceiptHtml } from "@/lib/receiptHtml";
 
 interface Props {
   items: CartItem[];
