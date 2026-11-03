@@ -14,7 +14,97 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      udhar_entries: {
+        Row: {
+          created_at: string
+          customer_name: string
+          entry_date: string
+          id: string
+          mobile: string | null
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          entry_date?: string
+          id?: string
+          mobile?: string | null
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          entry_date?: string
+          id?: string
+          mobile?: string | null
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      udhar_items: {
+        Row: {
+          entry_id: string
+          id: string
+          item_name: string
+          price: number
+          quantity: number
+        }
+        Insert: {
+          entry_id: string
+          id?: string
+          item_name: string
+          price?: number
+          quantity?: number
+        }
+        Update: {
+          entry_id?: string
+          id?: string
+          item_name?: string
+          price?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "udhar_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "udhar_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      udhar_payments: {
+        Row: {
+          amount: number
+          entry_id: string
+          id: string
+          note: string | null
+          paid_at: string
+        }
+        Insert: {
+          amount: number
+          entry_id: string
+          id?: string
+          note?: string | null
+          paid_at?: string
+        }
+        Update: {
+          amount?: number
+          entry_id?: string
+          id?: string
+          note?: string | null
+          paid_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "udhar_payments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "udhar_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
