@@ -18,6 +18,7 @@ export interface EscposReceipt {
   upiId: string;
   upiUrl: string;
   paper: "58mm" | "80mm";
+  udhar?: { paid: number; remaining: number };
 }
 
 const ESC = 0x1b;
@@ -148,6 +149,10 @@ export const buildEscposReceipt = (r: EscposReceipt): Uint8Array => {
   const half = Math.floor(W / 2);
   b.line(pad("TOTAL", half - totalStr.length > 0 ? half - totalStr.length : 1) + totalStr);
   b.size(false).bold(false);
+  if (r.udhar) {
+    b.line(pad("Paid", W - 12) + pad(`Rs.${r.udhar.paid.toFixed(2)}`, 12, true));
+    b.bold(true).line(pad("Remaining", W - 12) + pad(`Rs.${r.udhar.remaining.toFixed(2)}`, 12, true)).bold(false);
+  }
   b.line(rule);
 
   b.align("center").line("Scan to Pay (UPI)");

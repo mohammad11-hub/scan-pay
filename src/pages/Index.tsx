@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ScanLine, Trash2, Store, Plus, Package, Phone, Check } from "lucide-react";
+import { ScanLine, Trash2, Store, Plus, Package, Phone, Check, BookUser } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -114,6 +114,9 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="icon" aria-label="Udhar Khata">
+              <Link to="/udhar"><BookUser className="h-4 w-4" /></Link>
+            </Button>
             <Button asChild variant="outline" size="icon" aria-label="Manage products">
               <Link to="/products"><Package className="h-4 w-4" /></Link>
             </Button>

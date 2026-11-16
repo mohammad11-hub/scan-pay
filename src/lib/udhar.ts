@@ -67,17 +67,29 @@ export const createUdharEntry = async (input: {
   notes?: string | null;
   items: UdharItem[];
 }): Promise<UdharEntry> => {
-  const { data, error } = await supabase
+  const { data: entry, error } = await supabase
     .from("udhar_entries")
     .insert({
       customer_name: input.customer_name,
       mobile: input.mobile?.trim() || null,
       notes: input.notes?.trim() || null,
-      udhar_items: input.items,
     })
-    .select("*, udhar_items(*), udhar_payments(*)")
+    .select("id")
     .single();
   if (error) throw new Error(error.message);
+  const { error: itemsErr } = await supabase
+    .from("udhar_items")
+    .insert(input.items.map((i) => ({ ...i, entry_id: entry.id })));
+  if (itemsErr) {
+    await supabase.from("udhar_entries").delete().eq("id", entry.id);
+    throw new Error(itemsErr.message);
+  }
+  const { data, error: e2 } = await supabase
+    .from("udhar_entries")
+    .select("*, udhar_items(*), udhar_payments(*)")
+    .eq("id", entry.id)
+    .single();
+  if (e2) throw new Error(e2.message);
   return data as UdharEntry;
 };
 

@@ -15,6 +15,7 @@ export interface ReceiptData {
   total: number;
   upiId: string;
   qrDataUrl: string;
+  udhar?: { paid: number; remaining: number };
 }
 
 export const buildReceiptHtml = (d: ReceiptData): string =>
@@ -35,7 +36,7 @@ export const buildReceiptHtml = (d: ReceiptData): string =>
 <hr/>
 <div class="endblock"><table><tbody>
 <tr><td>Total Items</td><td class="num">${d.totalItems}</td></tr>
-<tr class="total"><td>TOTAL</td><td class="num">Rs.${d.total.toFixed(2)}</td></tr>
+<tr class="total"><td>TOTAL</td><td class="num">Rs.${d.total.toFixed(2)}</td></tr>${d.udhar ? `<tr><td>Paid</td><td class="num">Rs.${d.udhar.paid.toFixed(2)}</td></tr><tr class="total"><td>Remaining</td><td class="num">Rs.${d.udhar.remaining.toFixed(2)}</td></tr>` : ""}
 </tbody></table>
 <hr/>
 <div class="qr"><div>Scan to Pay (UPI)</div>${
