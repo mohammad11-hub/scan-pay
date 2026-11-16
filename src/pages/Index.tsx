@@ -13,8 +13,8 @@ import { CustomQRGenerator } from "@/components/CustomQRGenerator";
 import { BillHistory } from "@/components/BillHistory";
 import { findProductByBarcode, getProducts, type Product } from "@/data/products";
 
-const UPI_ID = "Q320109659@ybl";
-const SHOP_NAME = "Furat Dhaba";
+const UPI_ID = "mohammadhusainsunasara5@okhdfcbank";
+const SHOP_NAME = "mohammad husain";
 
 const Index = () => {
   const [items, setItems] = useState<CartItem[]>([]);
